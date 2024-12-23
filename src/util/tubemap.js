@@ -166,7 +166,7 @@ let extraLeft = []; // info whether nodes have to be moved further apart because
 let extraRight = []; // info whether nodes have to be moved further apart because of multiple 180° directional changes at the same horizontal order
 let maxOrder; // horizontal order of the rightmost node
 
-let globalAvailableColors = [...plainColors]
+let globalAvailableColors;
 let globalColorMap = {}
 let enableSelection = false;
 
@@ -499,6 +499,9 @@ function createTubeMap() {
 
   //TODO: trigger to enable / disable selection
   enableSelection = true;
+  globalColorMap = {}
+  globalAvailableColors = [...plainColors]
+
 
   nodeMap = generateNodeMap(nodes);
   generateTrackIndexSequences(tracks);
