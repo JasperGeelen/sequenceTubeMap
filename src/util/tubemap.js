@@ -463,6 +463,22 @@ function createTubeMap() {
   }
   if (tracks.length === 0) return;
 
+
+  nodes.forEach((node) => {
+    if (node.name != '10') {
+      node.mainGroup = true;
+    } else {
+      node.mainGroup = false;
+    }
+  })
+  nodes.filter(node => Number.isInteger(Number(node.name)));
+
+  console.log("TRACKS")
+  console.log(tracks);
+  console.log("NODES")
+  console.log(nodes);
+
+
   nodeMap = generateNodeMap(nodes);
   generateTrackIndexSequences(tracks);
   if (reads && config.showReads) generateTrackIndexSequences(reads);
@@ -2381,6 +2397,7 @@ function generateSingleLaneAssignment(assignment, order) {
   getIdealLanesAndCoords(assignment, order);
   assignment.sort(compareByIdealLane);
 
+
   assignment.forEach((node) => {
     if (node.node !== null) {
       nodes[node.node].topLane = currentLane;
@@ -2394,8 +2411,10 @@ function generateSingleLaneAssignment(assignment, order) {
       prevNameIsNull = true;
     }
 
+    let nodeHeightIncreased = false
+
     node.tracks.sort(compareByIdealLane);
-    node.tracks.forEach((track) => {
+    node.tracks.forEach((track, index, array) => {
       track.lane = currentLane;
       if (track.trackID === prevTrack && node.node === null && prevNameIsNull) {
         currentY += 10;
@@ -2406,10 +2425,23 @@ function generateSingleLaneAssignment(assignment, order) {
         potentialAdjustmentValues.add(track.idealY - currentY);
       }
       currentLane += 1;
-      currentY += tracks[track.trackID].width;
-      if (node.node !== null) {
-        nodes[node.node].contentHeight += tracks[track.trackID].width;
+      
+      if (node.node === null || !nodes[node.node].mainGroup) {
+        currentY += tracks[track.trackID].width;
       }
+      if (node.node !== null && nodes[node.node].mainGroup && index === array.length - 1) {
+        currentY += tracks[track.trackID].width;
+      }
+
+      if (node.node !== null) {
+        if (!nodeHeightIncreased && nodes[node.node].mainGroup) {
+          nodes[node.node].contentHeight += tracks[track.trackID].width
+          nodeHeightIncreased = true;
+        } else if (!nodes[node.node].mainGroup) {
+          nodes[node.node].contentHeight += tracks[track.trackID].width
+        }
+      } 
+
       prevTrack = track.trackID;
     });
     currentY += 25;
@@ -4220,6 +4252,10 @@ function trackMouseOver() {
   // lose the mouseout and immediately trigger another mouseover, if the mouse
   // is over a curved section of a read.
   d3.selectAll(`.track${trackID}`).style("fill", "url(#patternA)");
+  d3.selectAll(`.track${trackID}`).each(function () {
+    this.parentNode.appendChild(this);
+  });
+  
 }
 
 // Highlight node on mouseover
