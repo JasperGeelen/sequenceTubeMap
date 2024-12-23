@@ -66,6 +66,7 @@ enum ColorPalette{
   reds,
   plainColors,
   lightColors,
+  grayScale
 }
 
 // Hex describing a color

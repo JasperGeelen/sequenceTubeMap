@@ -52,6 +52,7 @@ TrackSettingsButton.defaultProps = {
     "reds",
     "plainColors",
     "lightColors",
+    "grayScale"
   ],
   testID: "settings-button-component",
 };

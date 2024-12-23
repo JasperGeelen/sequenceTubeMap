@@ -88,6 +88,36 @@ const lightColors = [
   "#A8E7ED",
 ];
 
+/**
+ * Generates a range of hexadecimal grayscale values.
+ * 
+ * @param {int} steps - Number of colors between start and end
+ * @returns {list} List of hexadecimal color strings with size: steps
+ */ 
+export function generateGrayscaleRange(steps) {
+  if (steps === 1) {
+    return ["#adadad"]
+  }
+  const randomOrder = true;
+  const startGrey = 200
+  const endGrey = 185
+  
+  const stepSize = (endGrey - startGrey) / (steps - 1);
+  let grayscale = [];
+  for (let i = 0; i < steps; i++) {
+    const grey = Math.round(startGrey + i * stepSize);
+    const hex = grey.toString(16).padStart(2, '0');
+    const hexColor = `#${hex}${hex}${hex}`;
+    grayscale.push(hexColor);
+  }
+
+  if (randomOrder) {
+      grayscale.sort(() => Math.random() - 0.5);
+  }
+
+  return grayscale;
+}
+
 // Font stack we will use in the SVG
 // We start with Courier New because it exists a lot more places than
 // "Courier", and because tools like Inkscape can't interpret the text properly
@@ -2624,6 +2654,8 @@ function getColorSet(colorSetName) {
       return ygreys;
     case "lightColors":
       return lightColors;
+    case "grayScale":
+      return generateGrayscaleRange(tracks.length)
     default:
       return greys;
   }

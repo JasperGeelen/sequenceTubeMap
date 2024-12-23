@@ -11,6 +11,7 @@ describe("TrackSettings", () => {
     "reds",
     "plainColors",
     "lightColors",
+    "grayScale"
   ];
   const trackColorSettings = {
     mainPalette: "blues",

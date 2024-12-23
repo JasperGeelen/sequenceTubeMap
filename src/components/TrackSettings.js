@@ -139,6 +139,7 @@ TrackSettings.defaultProps = {
     "reds",
     "plainColors",
     "lightColors",
+    "grayScale"
   ],
   presetColors: [
     "#FF6900",

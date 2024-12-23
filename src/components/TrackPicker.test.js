@@ -18,6 +18,7 @@ describe("TrackPicker", () => {
     "reds",
     "plainColors",
     "lightColors",
+    "grayScale"
   ];
   const availableTracks = [
     { trackFile: "fileA1.vg", trackType: "graph" },

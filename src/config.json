@@ -4,7 +4,7 @@
     {
       "name": "snp1kg-BRCA1",
       "tracks": [
-        {"trackFile": "exampleData/internal/snp1kg-BRCA1.vg.xg", "trackType": "graph", "trackColorSettings": {"mainPalette": "greys", "auxPalette": "ygreys"}},
+        {"trackFile": "exampleData/internal/snp1kg-BRCA1.vg.xg", "trackType": "graph", "trackColorSettings": {"mainPalette": "greys", "auxPalette": "grayScale"}},
         {"trackFile": "exampleData/internal/NA12878-BRCA1.sorted.gam", "trackType": "read"}
       ],
       "region": "17:1-100",
