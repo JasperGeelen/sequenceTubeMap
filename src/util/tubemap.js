@@ -166,6 +166,10 @@ let extraLeft = []; // info whether nodes have to be moved further apart because
 let extraRight = []; // info whether nodes have to be moved further apart because of multiple 180° directional changes at the same horizontal order
 let maxOrder; // horizontal order of the rightmost node
 
+let globalAvailableColors = [...plainColors]
+let globalColorMap = {}
+let enableSelection = false;
+
 const config = {
   mergeNodesFlag: true,
   transparentNodesFlag: false,
@@ -492,6 +496,9 @@ function createTubeMap() {
     }
   }
   if (tracks.length === 0) return;
+
+  //TODO: trigger to enable / disable selection
+  enableSelection = true;
 
   nodeMap = generateNodeMap(nodes);
   generateTrackIndexSequences(tracks);
@@ -4248,10 +4255,16 @@ function getTrackByID(trackID) {
 function trackMouseOver() {
   /* jshint validthis: true */
   const trackID = d3.select(this).attr("trackID");
+  const trackName = d3.select(this).attr("trackName");
   // TODO: We want to also .raise() here, but it makes Firefox 124.0.2 on Mac
   // lose the mouseout and immediately trigger another mouseover, if the mouse
   // is over a curved section of a read.
-  d3.selectAll(`.track${trackID}`).style("fill", "url(#patternA)");
+  
+  //If the tube has not been selected yet, mark with first available color
+  if (!globalColorMap[trackName] && enableSelection) {
+    const color = globalAvailableColors[0];
+    d3.selectAll(`.track${trackID}`).style("fill", color);
+  }
 }
 
 // Highlight node on mouseover
@@ -4264,6 +4277,12 @@ function nodeMouseOver() {
 function trackMouseOut() {
   /* jshint validthis: true */
   const trackID = d3.select(this).attr("trackID");
+  const trackName = d3.select(this).attr("trackName");
+
+  //If it has a selection color, do not reset the color
+  if (globalColorMap[trackName] && enableSelection) {
+    return
+  }
   d3.selectAll(`.track${trackID}`).each(function clearTrackHighlight() {
     const c = d3.select(this).attr("color");
     d3.select(this).style("fill", c);
@@ -4281,8 +4300,9 @@ function trackDoubleClick() {
   /* jshint validthis: true */
   const trackID = d3.select(this).attr("trackID");
   const index = getInputTrackIndexByID(trackID);
-  if (index === undefined) {
+  if (index === undefined || enableSelection) {
     // Must be a read. Skip it.
+    // Messes with list of selected nodes
     return;
   }
   if (DEBUG) console.log(`moving index: ${index}`);
@@ -4334,9 +4354,33 @@ function trackSingleClick() {
     track_attributes.push(["Mapping Quality", current_track.mapping_quality]);
     track_attributes.push(["Path Info", getPathInfo(current_track)]);
   }
-  console.log("Single Click");
-  console.log("read path");
-  config.showInfoCallback(track_attributes);
+
+  if (enableSelection) {
+    if (globalColorMap[current_track.name]) {
+      //Color is already selected, return to original and make color available
+      const color = globalColorMap[current_track.name]
+      delete globalColorMap[current_track.name];
+  
+      const colorSet = getColorSet(config.colorSchemes[current_track.sourceTrackID].auxPalette);
+      const trackColor = colorSet[trackID % colorSet.length];
+      d3.selectAll(`.track${trackID}`).style("fill", trackColor);
+  
+      globalAvailableColors.push(color)
+      globalAvailableColors.sort((a, b) => plainColors.indexOf(a) - plainColors.indexOf(b));
+    } else {
+      //Color was not selected, use first available color
+      const color = globalAvailableColors.shift()
+      globalColorMap[current_track.name] = color
+      d3.selectAll(`.track${trackID}`).style("fill", color);
+    }
+  } else {
+    console.log("Single Click");
+    console.log("read path");
+    config.showInfoCallback(track_attributes);
+  }
+  
+
+  
 }
 
 // show track name when hovering mouse
