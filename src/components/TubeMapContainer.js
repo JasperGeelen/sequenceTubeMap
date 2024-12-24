@@ -299,6 +299,10 @@ class TubeMapContainer extends Component {
         );
 
         break;
+      case dataOriginTypes.EXAMPLE_10:
+        tracks = data.inputTracks6;
+        break;
+
       case dataOriginTypes.NO_DATA:
         // Leave the data empty.
         break;

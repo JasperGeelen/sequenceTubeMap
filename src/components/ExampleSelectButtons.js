@@ -97,6 +97,15 @@ class ExampleSelectButtons extends Component {
           }
         >
           Multiple Nodes Cycle 2
+          </Button>
+        <Button
+          color="primary"
+          id="example10"
+          onClick={() =>
+            this.handleClick(dataOriginTypes.EXAMPLE_10, "plainColors")
+          }
+        >
+          LiteView example
         </Button>
       </Form>
     );

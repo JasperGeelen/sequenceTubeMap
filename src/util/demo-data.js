@@ -32,6 +32,18 @@ export const inputNodes = [
   { sourceTrackID: 0, name: "AE", width: 1, seq: "G" },
   { sourceTrackID: 0, name: "AF", width: 1, seq: "T" },
   { sourceTrackID: 0, name: "AG", width: 3, seq: "GTG" },
+
+  { sourceTrackID: 0, name: "1", width: 6, seq: "AAAAAA" },
+  { sourceTrackID: 0, name: "2", width: 6, seq: "CCCCCC" },
+  { sourceTrackID: 0, name: "3", width: 6, seq: "TTTTTT" },
+  { sourceTrackID: 0, name: "4", width: 6, seq: "GGGGGG" },
+  { sourceTrackID: 0, name: "10", width: 1, seq: "A" },
+  { sourceTrackID: 0, name: "11", width: 3, seq: "AAA" },
+  { sourceTrackID: 0, name: "12", width: 1, seq: "C" },
+  { sourceTrackID: 0, name: "13", width: 3, seq: "CCC" },
+  { sourceTrackID: 0, name: "14", width: 13, seq: "TATATCCCTATAT" },
+
+
 ];
 
 // prettier-ignore
@@ -77,6 +89,20 @@ export const inputTracks5 = [
   { id: 2, sourceTrackID: 0, name: 'Track C', sequence: ['A', 'B', 'D', 'E', 'G', 'H', 'J', 'K', 'M', 'N', 'P', 'Q', 'S', 'V', 'W', 'X', 'Z', 'AB', 'AE', 'AG'] },
   { id: 3, sourceTrackID: 0, name: 'Track D', sequence: ['B', 'C', 'D', 'H', 'E', 'G', 'J', 'L', 'M', 'N', 'P', 'R', 'S', 'U', 'W', 'Y', 'Z', 'AC', 'AF', 'AG'] },
   { id: 4, sourceTrackID: 0, name: 'Track E', sequence: ['B', 'D', 'F', 'G', 'I', 'J', 'L', 'M', 'O', 'P', 'Q', 'S', 'T', 'V', 'W', 'Y', 'Z', 'AD', 'AF', 'AG'] },
+];
+
+// prettier-ignore
+export const inputTracks6 = [
+  { id: 0, sourceTrackID: 0, name: 'Track A', indexOfFirstBase: 1, sequence: ['1', '2', '3', '4'], freq: 100 },
+  { id: 1, sourceTrackID: 0, name: 'Track B', indexOfFirstBase: 1, sequence: ['1', '2', '3', '4'], freq: 100 },
+  { id: 2, sourceTrackID: 0, name: 'Track C', indexOfFirstBase: 1, sequence: ['1', '2', '3', '4'], freq: 100 },
+  { id: 3, sourceTrackID: 0, name: 'Track D', indexOfFirstBase: 1, sequence: ['1', '2', '3', '4'], freq: 100 },
+  { id: 4, sourceTrackID: 0, name: 'Track E', indexOfFirstBase: 1, sequence: ['1', '2', '3', '4'], freq: 100 },
+  { id: 5, sourceTrackID: 0, name: 'Track F', indexOfFirstBase: 1, sequence: ['1', '2', '3', '4'], freq: 100 },
+  { id: 6, sourceTrackID: 0, name: 'Track G', indexOfFirstBase: 1, sequence: ['1', '2', '3', '14', '4'], freq: 100 },
+  { id: 7, sourceTrackID: 0, name: 'Track H', indexOfFirstBase: 1, sequence: ['1', '10', '2', '12', '3', '4'], freq: 100 },
+  { id: 8, sourceTrackID: 0, name: 'Track I', indexOfFirstBase: 1, sequence: ['1', '11', '2', '13', '3', '4'], freq: 100 },
+  { id: 9, sourceTrackID: 0, name: 'Track J', indexOfFirstBase: 1, sequence: ['1', '4'], freq: 100 },
 ];
 
 export const k3138 = `
