@@ -175,6 +175,9 @@ let trackForRuler;
 
 let bed;
 
+//Global variables for LiteView
+let minSVsize;
+
 // main function to call from outside
 // which starts the process of creating a tube map visualization
 export function create(params) {
@@ -378,6 +381,20 @@ export function setColorSet(fileID, newColor) {
   }
 }
 
+// set flag for enabling LiteView
+export function setLiteViewFlag(value) {
+  if (config.liteViewFlag !== value) {
+    config.liteViewFlag = value;
+    svg = d3.select(svgID);
+    createTubeMap();
+  }
+}
+
+export function updateLiteView(updateMap) {
+  minSVsize = updateMap["minSVsize"];
+  createTubeMap();
+}
+
 // sets which option should be used for calculating the node width from its sequence length
 /*
   - normal: Node lengths are computed based on the sequence length, and the sequences are displayed
@@ -462,6 +479,11 @@ function createTubeMap() {
     }
   }
   if (tracks.length === 0) return;
+
+  if (config.liteViewFlag) {
+    
+    console.log("LITE VIEW ENABLED")
+  }
 
   nodeMap = generateNodeMap(nodes);
   generateTrackIndexSequences(tracks);

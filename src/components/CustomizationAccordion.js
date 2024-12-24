@@ -1,4 +1,4 @@
-import React, { Component } from "react";
+import React, { Component, useRef } from "react";
 import PropTypes from "prop-types";
 import {
   Container,
@@ -10,6 +10,7 @@ import {
   Label,
   Input,
   FormGroup,
+  Button,
 } from "reactstrap";
 import TrackSettings from "./TrackSettings";
 
@@ -45,6 +46,10 @@ class VisualizationOptions extends Component {
     return (key, value) => {
       this.props.setColorSetting(key, index, value);
     };
+  };
+
+  updateLiteView = (update) => {
+    this.props.updateLiteView(update);
   };
 
   render() {
@@ -97,6 +102,16 @@ class VisualizationOptions extends Component {
         throw new Error("Unknown track type " + type);
       }
     }
+
+    this.minSVSizeRef = React.createRef();
+    //const minSVSizeRef = useRef(null);
+    const handleClick = () => {
+      const value = this.minSVSizeRef.current.value;
+      //alert(`The value in the input is: ${value}`);
+      let update = {}
+      update["minSVsize"] = value
+      this.updateLiteView(update);
+    };
 
     return (
       <Container>
@@ -214,6 +229,41 @@ class VisualizationOptions extends Component {
                     </React.Fragment>
                   )}
                 </FormGroup>
+
+                <FormGroup>
+                  <h5>SV View</h5>
+                  <FormGroup check>
+                    <Label check>
+                      <Input
+                        type="checkbox"
+                        defaultValue={visOptions.liteView}
+                        onChange={() => toggleFlag("liteView")}
+                      />
+                      Enable SV view
+                    </Label>
+                  </FormGroup>
+                  <FormGroup check>
+                    <Label check>
+                      Show SV's with a minimal nucleotide size of:
+                    </Label>
+                    <input 
+                      type="number" 
+                      name="minSVsize" 
+                      defaultValue={50}
+                      ref={this.minSVSizeRef}
+                      style={{ marginLeft: "10px", width: "80px" }}
+                    />
+                  </FormGroup>
+                  <Button
+                    color="secondary"
+                    id="downloadButton"
+                    onClick={handleClick}
+                    style={{ marginTop: "10px"}}
+                  >
+                    Redraw the Visualization
+                  </Button>
+                </FormGroup>
+
               </CardBody>
             </Collapse>
           </Card>

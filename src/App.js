@@ -67,6 +67,8 @@ class App extends Component {
         colorReadsByMappingQuality: false,
         colorSchemes: getColorSchemesFromTracks(this.defaultViewTarget.tracks),
         mappingQualityCutoff: 0,
+        liteView: false,
+        liteViewInfo: {}
       },
       APIInterface: new ServerAPI(props.apiUrl)
     };
@@ -198,6 +200,15 @@ class App extends Component {
     }));
   };
 
+  updateLiteView = (update) => {
+    this.setState((state) => ({
+      visOptions: {
+        ...state.visOptions,
+        liteViewInfo: update,
+      },
+    }));
+  };
+
   // Set a color scheme setting for a particular track.
   //
   // key is the name of the setting to set, and may be "mainPalette", "auxPalette", or "colorByMappingQuality".
@@ -263,6 +274,7 @@ class App extends Component {
           handleMappingQualityCutoffChange={
             this.handleMappingQualityCutoffChange
           }
+          updateLiteView={this.updateLiteView}
           setColorSetting={this.setColorSetting}
           currentAPIMode={this.getAPIMode()}
           setAPIMode={this.setAPIMode.bind(this)}

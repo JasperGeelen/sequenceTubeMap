@@ -50,6 +50,8 @@ class TubeMap extends Component {
     tubeMap.setShowReadsFlag(visOptions.showReads);
     tubeMap.setSoftClipsFlag(visOptions.showSoftClips);
     tubeMap.setColoredNodes(visOptions.coloredNodes);
+    tubeMap.setLiteViewFlag(visOptions.liteView)
+    tubeMap.updateLiteView(visOptions.liteViewInfo)
 
     for (let key of Object.keys(visOptions.colorSchemes)) {
       // Apply color-by-mapping-quality parameter to all the schemes.
