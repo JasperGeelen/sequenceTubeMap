@@ -249,7 +249,7 @@ class VisualizationOptions extends Component {
                     <input 
                       type="number" 
                       name="minSVsize" 
-                      defaultValue={50}
+                      defaultValue={10}
                       ref={this.minSVSizeRef}
                       style={{ marginLeft: "10px", width: "80px" }}
                     />
