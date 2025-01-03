@@ -4,6 +4,7 @@ import { Container, Row, Alert } from "reactstrap";
 import isEqual from "react-fast-compare";
 
 import TubeMap from "./TubeMap";
+import TubeMapSelection from "./TubeMapSelection";
 import * as tubeMap from "../util/tubemap";
 import { dataOriginTypes } from "../enums";
 import PopUpInfoDialog from "./PopUpInfoDialog";
@@ -126,6 +127,21 @@ class TubeMapContainer extends Component {
               ...this.props.visOptions,
             }}
             nodeSequences={!this.props.viewTarget.removeSequences}
+            selection={false}
+          />
+        </div>
+        <div id="selectionSVG">
+          <TubeMapSelection
+            nodes={this.state.nodes}
+            tracks={this.state.tracks}
+            reads={this.state.reads}
+            region={this.state.region}
+            visOptions={{
+              coloredNodes: this.state.coloredNodes,
+              ...this.props.visOptions,
+            }}
+            nodeSequences={!this.props.viewTarget.removeSequences}
+            selection={true}
           />
         </div>
       </div>
