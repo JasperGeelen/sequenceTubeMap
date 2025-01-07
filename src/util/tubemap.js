@@ -908,11 +908,6 @@ function LiteView(nodes, tracks) {
       let currNode = ogTrack.sequence[i]
       let currNodeRef = ogNodes[nodeMap.get(currNode)];
 
-      //Skip over insertions
-      if (currNodeRef.seq.length > minSVsize) {
-        continue;
-      }
-
       if (majNodeNames.includes(currNode)) {
         if (majNodeMap[currentNewNode].includes(currNode) && inBetween) {
           inBetween = false;
@@ -923,7 +918,7 @@ function LiteView(nodes, tracks) {
           let newSeq = newNodeList[newNodeMap.get(currentNewNode)].seq;
           oldSeq = oldSeq.join('')
           let error = levenshtein(oldSeq, newSeq)
-          //console.log("The error between old: " + oldSeq + " and new: " + newSeq + " is: " + error)
+          console.log("The error between old: " + oldSeq + " and new: " + newSeq + " is: " + error)
           let errorPercent = Math.round(error / newSeq.length * 100)
           nodeErrorMap[currentNewNode][newTrack.name] = errorPercent
 
@@ -959,7 +954,7 @@ function LiteView(nodes, tracks) {
           }
         }
       } else {
-        if (!inBetween) {
+        if (!inBetween && currNodeRef.seq.length < minSVsize) {
           oldSeq.push(currNodeRef.seq)
         }
         //tail.push(currNodeRef.seq)
