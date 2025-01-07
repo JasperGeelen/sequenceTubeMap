@@ -48,9 +48,21 @@ input[type="file"] {
   border-radius: 0.25rem;
 }
 
+#selectionSVG {
+  position: relative;
+  margin: 20px;
+  border: 1px solid rgba(0, 0, 0, 0.125);
+  border-radius: 0.25rem;
+}
+
 #svg {
   width: 100%;
-  height: 75vh;
+  height: 40vh;
+}
+
+#sub_svg {
+  width: 100%;
+  height: 40vh;
 }
 
 /* contains the spinning loader */

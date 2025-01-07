@@ -1,9 +1,9 @@
 import React, { Component } from "react";
 import PropTypes from "prop-types";
-import * as tubeMap from "../util/tubemap";
+import * as tubeMap from "../util/tubemapSel";
 import isEqual from "react-fast-compare";
 
-class TubeMap extends Component {
+class TubeMapSelection extends Component {
   componentDidMount() {
     this.updateVisOptions();
     this.createTubeMap();
@@ -25,7 +25,7 @@ class TubeMap extends Component {
 
   createTubeMap = () => {
     tubeMap.create({
-      svgID: "#svg",
+      svgID: "#sub_svg",
       nodes: this.props.nodes,
       tracks: this.props.tracks,
       reads: this.props.reads,
@@ -50,8 +50,6 @@ class TubeMap extends Component {
     tubeMap.setShowReadsFlag(visOptions.showReads);
     tubeMap.setSoftClipsFlag(visOptions.showSoftClips);
     tubeMap.setColoredNodes(visOptions.coloredNodes);
-    tubeMap.setLiteViewFlag(visOptions.liteView)
-    tubeMap.updateLiteView(visOptions.liteViewInfo)
 
     for (let key of Object.keys(visOptions.colorSchemes)) {
       // Apply color-by-mapping-quality parameter to all the schemes.
@@ -67,11 +65,11 @@ class TubeMap extends Component {
   }
 
   render() {
-    return <svg id="svg" alt="Rendered sequence tube map visualization" />;
+    return <svg id="sub_svg" alt="Rendered sequence tube map selection visualization" />;
   }
 }
 
-TubeMap.propTypes = {
+TubeMapSelection.propTypes = {
   nodes: PropTypes.array.isRequired,
   tracks: PropTypes.array.isRequired,
   reads: PropTypes.array.isRequired,
@@ -80,8 +78,8 @@ TubeMap.propTypes = {
   nodeSequences: PropTypes.bool
 };
 
-TubeMap.defaultProps = {
+TubeMapSelection.defaultProps = {
   nodeSequences: true
 };
 
-export default TubeMap;
+export default TubeMapSelection;

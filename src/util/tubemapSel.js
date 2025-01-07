@@ -15,9 +15,8 @@ import externalConfig from "../config-global.mjs";
 import { defaultTrackColors } from "../common.mjs";
 
 const deepEqual = require("deep-equal");
-const levenshtein = require('js-levenshtein');
-const selectionData = require('./selectionData');
-const Mediator = require('./selectionMediator');
+const selectionData = require('./selectionData.js');
+const Mediator = require('./selectionMediator.js');
 
 const DEBUG = false;
 
@@ -178,16 +177,12 @@ let trackForRuler;
 
 let bed;
 
-//Global variables for LiteView
-let minSVsize = 10;
-
-let nodeOrders = {};
-let globalNodeErrorMap = {}
-let globalMajNodeMap;
-
 // main function to call from outside
 // which starts the process of creating a tube map visualization
 export function create(params) {
+
+  //Make sure that this tubemap can be redrawn from the other tubemap
+  Mediator.registerCallback(createTubeMap);
 
   // mandatory parameters: svgID (really a selector, but must be an ID selector), nodes, tracks
   // optional parameters: bed, clickableNodes, reads, showLegend
@@ -208,7 +203,7 @@ export function create(params) {
   config.clickableNodesFlag = params.clickableNodes || false;
   config.hideLegendFlag = params.hideLegend || false;
   const tr = createTubeMap();
-  if (!config.hideLegendFlag) drawLegend(tr);
+  if (!config.hideLegendFlag  && tr) drawLegend(tr);
 }
 
 // Deep copy something, but preserve array holes at the top level
@@ -389,22 +384,6 @@ export function setColorSet(fileID, newColor) {
   }
 }
 
-// set flag for enabling LiteView
-export function setLiteViewFlag(value) {
-  if (config.liteViewFlag !== value) {
-    config.liteViewFlag = value;
-    svg = d3.select(svgID);
-    createTubeMap();
-  }
-}
-
-export function updateLiteView(updateMap) {
-  if (updateMap["minSVsize"]) {
-    minSVsize = updateMap["minSVsize"];
-  }
-  createTubeMap();
-}
-
 // sets which option should be used for calculating the node width from its sequence length
 /*
   - normal: Node lengths are computed based on the sequence length, and the sequences are displayed
@@ -448,6 +427,22 @@ export function setMappingQualityCutoff(value) {
 // main
 function createTubeMap() {
   console.log("Recreating tube map in", svgID);
+
+  let currSVG = document.getElementById(`sub_svg`);
+  if (selectionData.selectedTracks && selectionData.selectedNodes) {
+    inputNodes = selectionData.selectedNodes;
+    inputTracks = selectionData.selectedTracks;
+    inputNodes.unshift(undefined);
+    // And then leave a hole in the array at 0 which we won't iterate over.
+    delete inputNodes[0];
+    currSVG.style.height = '40vh';
+  } else {
+    svg = d3.select(svgID);
+    svg.selectAll("*").remove(); // clear svg for (re-)drawing
+    currSVG.style.height = '2vh';
+    return;
+  }
+
   trackRectangles = [];
   trackCurves = [];
   trackCorners = [];
@@ -489,21 +484,6 @@ function createTubeMap() {
     }
   }
   if (tracks.length === 0) return;
-
-  nodeMap = generateNodeMap(nodes);
-  generateTrackIndexSequences(tracks);
-  generateNodeDegree();
-
-  let nodeErrorMap = {}
-  if (config.liteViewFlag) {
-    let [newNodes, newTracks, newNodeErrorMap] = LiteView(nodes, tracks);
-    newNodes.unshift(undefined);
-    delete newNodes[0];
-    nodes = newNodes;
-    tracks = newTracks;
-    nodeErrorMap = newNodeErrorMap
-    globalNodeErrorMap = newNodeErrorMap
-  }
 
   nodeMap = generateNodeMap(nodes);
   generateTrackIndexSequences(tracks);
@@ -596,12 +576,6 @@ function createTubeMap() {
   // all drawn nodes are grouped
   let nodeGroup = svg.append("g").attr("class", "node");
   drawNodes(dNodes, nodeGroup);
-
-  
-  if (config.liteViewFlag) {
-    drawErrors(dNodes, nodeErrorMap)
-  }
-
   if (config.nodeWidthOption === "normal") drawLabels(dNodes);
   if (trackForRuler !== undefined) drawRuler();
   if (config.nodeWidthOption === "normal") drawMismatches(); // TODO: call this before drawLabels and fix d3 data/append/enter stuff
@@ -611,551 +585,6 @@ function createTubeMap() {
   }
   return tracks;
 }
-
-function LiteView(nodes, tracks) {
-  //Settings
-  const majorityThreshold = 0.5;
-  const minTrackLength = 1;
-  const svSize = minSVsize;
-  const p = 0.1
-
-  //Remove Small tracks
-  tracks = tracks.filter(track => track.sequence.length > minTrackLength);
-
-  //Keep a copy of the old tracks
-  let ogTracks = deepCopy(tracks);
-  let ogNodes = deepCopy(nodes);
-
-
-  //Find majority nodes
-  let minNrTracks = Math.floor(majorityThreshold * tracks.length);
-  let majNodeNames = []
-
-  nodes.forEach((node) => {
-    let nodeDegree = node.tracks.length;
-    if (nodeDegree >= minNrTracks) {
-      majNodeNames.push(node.name);
-    }
-  });
-
-
-  //Order majorityNodes
-  let ordMajNodeNames = []
-  tracks.forEach((track) => {
-    if (!(ordMajNodeNames.length == majNodeNames.length)) {
-      let idx = 0;
-      track.sequence.forEach((nodeName) => {
-        if (majNodeNames.includes(nodeName)) {
-          if (ordMajNodeNames.includes(nodeName)) {
-          } else {
-            ordMajNodeNames.splice(idx, 0, nodeName);
-          }
-          idx += 1;
-        }
-      });
-    }
-  });
-  majNodeNames = ordMajNodeNames;
-
-
-  //Prepare list with track modification info
-  let trackMods = {}
-  tracks.forEach((track) => {
-    trackMods[track.name] = [];
-  });
-  const modType = {
-    insertion: 'insertion',
-    deletion: 'deletion',
-  }
-
-
-  //To keep track where cuts have already been placed
-  let ogMajNodeNames = deepCopy(majNodeNames);
-
-
-  //Find insertion cuts
-  tracks.forEach((track) => {
-    let insertion = false;
-    let latestMajority;
-    let lastSv;
-    let lastSvStart;
-    //Visit each node, check whether it is an inertion compared to Maj nodes
-    track.sequence.forEach((nodeName) => {
-      let refNode = nodes[nodeMap.get(nodeName)]
-      if (refNode.seq.length > svSize && !majNodeNames.includes(nodeName)) {
-        lastSv = nodeName;
-        lastSvStart = latestMajority;
-        //Start of insertion
-        let idx = majNodeNames.indexOf(latestMajority);
-        if (majNodeNames[idx + 1] !== "XXX") {
-          majNodeNames.splice(idx + 1, 0, "XXX");
-        }
-        insertion = true;
-      } else {
-        //TODO: need to account for insertions that consist of multiple nodes
-        if (majNodeNames.includes(nodeName)) {
-          latestMajority = nodeName;
-          if (insertion) {
-            let newInsertion = {
-              "type": modType.insertion,
-              "nodeName": lastSv,
-              "head": lastSvStart,
-              "tail": latestMajority
-            }
-            trackMods[track.name].push(newInsertion);
-            //End of insertion
-            let idx = majNodeNames.indexOf(latestMajority);
-            if (majNodeNames[idx-1] !== "XXX") {
-              majNodeNames.splice(idx, 0, "XXX");
-            }
-            insertion = false;
-          }
-        }
-      }
-    });
-  });
-
-
-  //Find deletion cuts
-  tracks.forEach((track) => {
-    let head;
-    let delCount = 0;
-    //Visit each maj node, check whether track visits all maj nodes
-    ogMajNodeNames.forEach((nodeName) => {
-      if (!track.sequence.includes(nodeName)) {
-        let refNode = nodes[nodeMap.get(nodeName)]
-        delCount += refNode.seq.length;
-      } else {
-        if (delCount == 0) {
-          head = nodeName;
-        }
-        if (delCount >= svSize && head) {
-          //console.log("deletion count exceeds sv size")
-          let newDeletion = {
-            "type": modType.deletion,
-            "head": head,
-            "tail": nodeName
-          }
-          trackMods[track.name].push(newDeletion);
-          //Tail end of the deletion
-          let idx = majNodeNames.indexOf(nodeName);
-          if (majNodeNames[idx-1] !== "XXX") {
-            majNodeNames.splice(idx, 0, "XXX");
-          }
-          //Start of the deletion
-          idx = majNodeNames.indexOf(head);
-          if (majNodeNames[idx] !== "XXX") {
-            majNodeNames.splice(idx + 1, 0, "XXX");
-          }
-        }
-        delCount = 0;
-      }
-    });
-  });
-
-  console.log("TRACKMODS")
-  console.log(trackMods)
-
-  console.log("MAJORITY NODE NAMES")
-  console.log(majNodeNames)
-
-  //Merge nodes
-  let majNodeMap = {}
-  let newNodeList = []
-  let majNodeList = []
-  let isHead = true;
-  let newSeq = ""
-  let head;
-  let tail;
-  let counter = 0;
-  for (let i = 0; i < majNodeNames.length; i++) {
-    let currNode = majNodeNames[i];
-    if (currNode !== "XXX") {
-      let currSeqNode = nodes[nodeMap.get(currNode)];
-      newSeq += currSeqNode.seq;
-      majNodeList.push(currSeqNode.name);
-    }
-    if (isHead && (currNode != "XXX")) {
-      head = currNode;
-      tail = currNode;
-      isHead = false;
-    }
-    if (currNode === "XXX" || i === majNodeNames.length - 1) {
-      //Merge all sequences that you have seen
-      let newNode = {
-        "name": (1000 + counter).toString(),
-        "seq": newSeq,
-        "sourceTrackID": 0,
-        "width": newSeq.length,
-        "head": head,
-        "tail": tail
-      }
-      if (newSeq.length > 0) {
-        newNodeList.push(newNode);
-      }
-      newSeq = ""
-      isHead = true;
-      majNodeMap[newNode.name] = majNodeList;
-      majNodeList = [];
-      counter++;
-    }
-    tail = currNode;
-  }
-  globalMajNodeMap = majNodeMap;
-
-  console.log("GLOBAL MAJORITY NODE MAP")
-  console.log(globalMajNodeMap)
-
-  //Create new Tracks
-  let insertions = [];
-  tracks.forEach((track) => {
-
-    //Get first majority node in track
-    let firstNewNode;
-    for (let i = 0; i < track.sequence.length; i++) {
-      let nodeName = track.sequence[i]
-      if (majNodeNames.includes(nodeName)) {
-        for (let j = 0; j < newNodeList.length; j++) {
-          if (majNodeMap[newNodeList[j].name].includes(nodeName)) {
-            firstNewNode = newNodeList[j].name
-            //console.log("Found first node: " + newNodeList[j].name);
-            break;
-          }
-        }
-        if (firstNewNode) {
-          break;
-        }
-      }
-    }
-
-    //Loop through new node list, take care of any SV's come across
-    let foundStartNode = false;
-    let newSequence = []
-    let insideMod = false;
-    let mods = trackMods[track.name];
-    for (let i = 0; i < newNodeList.length; i++) {
-      let currNode = newNodeList[i];
-      if (currNode.name !== firstNewNode && !foundStartNode) {
-        continue;
-      } else {
-        foundStartNode = true;
-      }
-      let startMod = mods.find(mod => mod.head === currNode.tail);
-      let endMod = mods.find(mod => mod.tail === currNode.head);
-      if (endMod) insideMod = false;
-      if (!insideMod) newSequence.push(currNode.name);
-      if (startMod) {
-        let refNode = nodes[nodeMap.get(startMod.nodeName)];
-        if (startMod.type == modType.insertion) {
-          insertions.push(refNode);
-          newSequence.push(startMod.nodeName);
-        }
-        insideMod = true;
-      } 
-    }
-    track.sequence = newSequence;
-  });
-  insertions.forEach((node) => {
-    node["modType"] = modType.insertion;
-    newNodeList.push(node)
-  });
-
-  console.log("NEW TRACKS")
-  console.log(tracks)
-
-
-  //Prepare map to save number of errors for each new node
-  let nodeErrorMap = {}
-  newNodeList.forEach((newNode) => {
-    nodeErrorMap[newNode.name] = {}
-  });
-
-  let newNodeMap = new Map();
-  newNodeList.forEach((node, index) => {
-    newNodeMap.set(node.name, index);
-  });
-
-  console.log("TRACK MODS")
-  console.log(trackMods)
-
-  console.log("NEW NODE LIST")
-  console.log(newNodeList)
-
-  console.log("OLD NODE LIST")
-  console.log(nodes)
-
-  //Computing the simplification errors
-  ogTracks.forEach((ogTrack) => {
-    let newTrack = tracks.find(track => track.name === ogTrack.name);
-
-    let currNewIdx = 0;
-    let currentNewNode = newTrack.sequence[0]
-  })
-
-
-  let leftovers = []
-  ogTracks.forEach((ogTrack) => {
-    let newTrack = tracks.find(track => track.name === ogTrack.name);
-    let mods = trackMods[newTrack.name];
-    let currNewIdx = 0;
-    let currentNewNode = newTrack.sequence[0]
-    let inBetween = false;
-    //TODO: add exception for if the new node list only has one node
-    let oldSeq = []
-    //let tail = [];
-    //Loop through the complete orginal sequence
-    for (let i = 0; i < ogTrack.indexSequence.length; i++) {
-      let currNode = ogTrack.sequence[i]
-      let currNodeRef = ogNodes[nodeMap.get(currNode)];
-
-      //Skip over insertions
-      if (currNodeRef.seq.length > minSVsize) {
-        continue;
-      }
-
-      if (majNodeNames.includes(currNode)) {
-        if (majNodeMap[currentNewNode].includes(currNode) && inBetween) {
-          inBetween = false;
-        }
-        if (!majNodeMap[currentNewNode].includes(currNode) || i === ogTrack.indexSequence.length - 1) {
-
-          //Record and proceed to next node
-          let newSeq = newNodeList[newNodeMap.get(currentNewNode)].seq;
-          oldSeq = oldSeq.join('')
-          let error = levenshtein(oldSeq, newSeq)
-          //console.log("The error between old: " + oldSeq + " and new: " + newSeq + " is: " + error)
-          let errorPercent = Math.round(error / newSeq.length * 100)
-          nodeErrorMap[currentNewNode][newTrack.name] = errorPercent
-
-          currNewIdx += 1;
-          if (currNewIdx < newTrack.sequence.length) {
-            currentNewNode = newTrack.sequence[currNewIdx]
-            let newNodeObj = newNodeList[newNodeMap.get(currentNewNode)];
-            if (newNodeObj.modType === modType.insertion) {
-              currNewIdx += 1;
-            }
-            currentNewNode = newTrack.sequence[currNewIdx]
-            // if (!majNodeMap[currentNewNode].includes(currNode)) {
-            //   //This means that the next majority node on this list is not part of the next node
-            //   console.log("ERROR NOT SUPPOSED TO HAPPEN")
-            // }
-          }
-          oldSeq = []
-          inBetween = true;
-
-          if (majNodeMap[currentNewNode].includes(currNode)) {
-            //instantly starts new node
-            inBetween = false;
-            oldSeq.push(currNodeRef.seq);
-          }
-
-          //leftovers.push(tail)
-          //tail = []
-        } else {
-          //oldSeq = oldSeq.concat(tail)
-          //tail = []
-          if (!inBetween) {
-            oldSeq.push(currNodeRef.seq);
-          }
-        }
-      } else {
-        if (!inBetween) {
-          oldSeq.push(currNodeRef.seq)
-        }
-        //tail.push(currNodeRef.seq)
-      }
-      
-    }
-
-  });
-
-  console.log("LETOVERS")
-  console.log(leftovers);
-
-  console.log("ERRORMAP:")
-  console.log(nodeErrorMap)
-
-  
-  //Merge tubes that only follow the majority nodes
-  // console.log("TRACK MODS")
-  // console.log(trackMods);
-
-  // let trackNamesMods = Object.entries(trackMods);
-  // let largestGroup = findLargestGroup(trackNamesMods);
-  // let repTrack;
-  // let count = 0;
-  // let trackList = []
-  // for (let i = 0; i < tracks.length; i++) {
-  //   let trackName = tracks[i].name
-  //   if (largestGroup.includes(trackName)) {
-  //     trackList.push(tracks[i].name)
-  //     if (!repTrack) {
-  //       repTrack = tracks[i]
-  //     } else {
-  //       count++;
-  //     }
-  //   }
-  // }
-  // if (repTrack) {
-  //   tracks = tracks.filter(track => !(trackList.includes(track.name) && track.name !== repTrack.name));
-  //   repTrack.freq = 10000;
-  //   repTrack.otherTracks = trackList;
-
-  //   //Assign grayscale colors to the 
-  //   // const colors = generateGrayscaleRange(trackList.length - 1)
-  //   // for (let i = 1; i < trackList.length; i++) {
-  //   //   let trackName = tracks[i]
-  //   //   selectionData.globalColors[trackName] = colors[i];
-  //   // }
-
-
-  //   let repTrackIdx = tracks.indexOf(repTrack)
-  //   tracks.unshift(tracks[repTrackIdx]); // add element to beginning
-  //   tracks.splice(repTrackIdx + 1, 1); // remove 1 element from the middle
-
-  // }
-
-  //Assign grayscale colors to liteview tracks
-  // const colors = generateGrayscaleRange(tracks.length)
-  // for (let i = 0; i < tracks.length; i++) {
-  //   let trackName = tracks[i].name
-  //   selectionData.globalColors[trackName] = colors[i];
-  // }
-
-  // console.log("GLOBAL COLORS")
-  // console.log(selectionData.globalColors);
-
-
-
-
-  //Return new node list and updated track list
-  return [newNodeList, tracks, nodeErrorMap];
-}
-
-function findLargestGroup(list) {
-  const groups = list.reduce((acc, [name, arr]) => {
-    const key = JSON.stringify(arr);
-    (acc[key] ||= []).push(name);  // Group names by second array part
-    return acc;
-  }, {});
-
-  return Object.values(groups).reduce((a, b) => a.length > b.length ? a : b);
-}
-
-
-function drawErrors(nodes, nodeErrorMap) {
-  //Number of errors to display on a multitrack
-  let nrTopErrors = 3
-  let centerAligned = false;
-
-  //The different options for displaying the errors in a multitrack
-  const multiTrackErrorOptions = {
-    TOPTHREE: 'TOPTHREE',
-    LINES: 'LINES',
-  };
-  let multiTrackOption = multiTrackErrorOptions.LINES;
-
-  tracks.sort((a, b) => a.id - b.id);
-  nodes.forEach((node) => {
-    let x = node.x;
-    let y = node.y + 2.5
-    let properOrder = nodeOrders[node.name]
-    for (let i = 0; i < node.degree; i++) {
-      let trackId = properOrder[i];
-      let trackName = tracks[trackId].name
-
-      if (tracks[trackId].otherTracks) {
-        let otherTracks = tracks[trackId].otherTracks
-        //Deal with multiTrack
-        //let errors = findTopErrors(otherTracks, nodeErrorMap[node.name], otherTracks.length);
-        //y = drawLineDistribution(errors, node, y);
-      } else {
-        //Normal tracks
-        let error = nodeErrorMap[node.name][trackName];
-        let width = node.pixelWidth * (error / 100)
-        if (centerAligned) {
-          x = node.x + node.pixelWidth / 2 -width / 2
-        }
-        
-        svg
-          .append("rect")
-          .attr("x", x)    
-          .attr("y", y)         
-          .attr("width", width)      
-          .attr("height", 10)       
-          .attr("fill", "red"); 
-        y += 15
-      }    
-    }
-  })
-}
-
-
-function nodeSelectionInfo(nodeName) {
-  let selectedTracks = []
-  let currentNode = getNodeByName(nodeName);
-
-  //Loop through each track in this node
-  currentNode.tracks.forEach((trackId) => {
-    let refTrack = inputTracks.find(track => track && track["id"] == trackId);
-    selectedTracks.push(deepCopy(refTrack))
-
-    //We need to check if the track contains other tracks within it
-    let newRefTrack = tracks.find(track => track && track["id"] == trackId);
-    if (newRefTrack.otherTracks) {
-      newRefTrack.otherTracks.forEach((otherTrackId) => {
-        let otherRefTrack = inputTracks.find(track => track && track["name"] == otherTrackId);
-        if (newRefTrack["name"] != otherRefTrack["name"]) {
-          selectedTracks.push(deepCopy(otherRefTrack))
-        }
-      });
-    }
-  });
-
-  //For each track cut the node sequence such that only nodes remain that are
-  //contained within the selected liteview node
-  let majNodes = globalMajNodeMap[nodeName]
-
-  selectedTracks.forEach((track) => {
-    let toBeRemovedNodes = []
-    //Loop from front
-    for (let i = 0; i < track.sequence.length; i++) {
-      let currNode = track.sequence[i]
-      if (majNodes.includes(currNode)) {
-        break;
-      } else {
-        toBeRemovedNodes.push(currNode)
-      }
-    }
-    //Loop from back
-    for (let i = track.sequence.length - 1; i >= 0; i--) {
-      let currNode = track.sequence[i]
-      if (majNodes.includes(currNode)) {
-        break;
-      } else {
-        toBeRemovedNodes.push(currNode)
-      }
-    }
-    //Remove irrelevant nodes from the sequence
-    track.sequence = track.sequence.filter(node => !toBeRemovedNodes.includes(node)) 
-  });
-  
-  //Retrieve the correct subset of Nodes
-  let selectedNodes = []
-  selectedTracks.forEach((track) => {
-    track.sequence.forEach((nodeName) => {
-      let refNode = inputNodes.find(node => node && node["name"] == nodeName);
-      selectedNodes.push(refNode)
-     })
-  })
-  selectedNodes = [...new Set(selectedNodes)]
-
-  selectionData.selectedTracks = selectedTracks
-  selectionData.selectedNodes = selectedNodes
-  Mediator.redrawSelection();
-}
-
-
 
 // generates attributes (node.y, node.contentHeight) for nodes without tracks, only reads
 function generateReadOnlyNodeAttributes() {
@@ -2974,17 +2403,6 @@ function generateSingleLaneAssignment(assignment, order) {
   getIdealLanesAndCoords(assignment, order);
   assignment.sort(compareByIdealLane);
 
-  assignment.forEach((assign) => {
-    if (assign.node) {
-      let properOrder = []
-      assign.tracks.sort(compareByIdealLane)  
-      for (let i = 0; i < assign.tracks.length; i++) {
-        properOrder.push(assign.tracks[i].trackID)
-      }
-      nodeOrders[nodes[assign.node].name] = properOrder
-    }
-  })
-
   assignment.forEach((node) => {
     if (node.node !== null) {
       nodes[node.node].topLane = currentLane;
@@ -3972,10 +3390,6 @@ function nodeSingleClick() {
   /* jshint validthis: true */
   // Get the node name
   const nodeName = d3.select(this).attr("id");
-
-  //Pass information to second tubeMap
-  nodeSelectionInfo(nodeName);
-
   let currentNode = getNodeByName(nodeName);
   console.log("Node ", nodeName, " is ", currentNode);
   if (currentNode === undefined) {
@@ -4000,10 +3414,7 @@ function nodeSingleClick() {
 
   console.log("Single Click");
   console.log("node show info callback", config.showInfoCallback);
-
-  if (!config.liteViewFlag) {
-    config.showInfoCallback(nodeAttributes);
-  }
+  config.showInfoCallback(nodeAttributes);
 }
 
 // Count the number of distinct reads that visit the given node object.
