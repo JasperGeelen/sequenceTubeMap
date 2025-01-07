@@ -2,6 +2,18 @@
   "BACKEND_URL": false,
   "DATA_SOURCES": [
     {
+      "name": "snp1kg-BRCA1",
+      "tracks": [
+        {"trackFile": "exampleData/internal/snp1kg-BRCA1.vg.xg", "trackType": "graph", "trackColorSettings": {"mainPalette": "greys", "auxPalette": "ygreys"}},
+        {"trackFile": "exampleData/internal/NA12878-BRCA1.sorted.gam", "trackType": "read"}
+      ],
+      "region": "17:1-100",
+      "bedFile": "exampleData/internal/snp1kg-BRCA1.bed",
+      "dataType": "built-in",
+      "simplify": false,
+      "removeSequences": false
+    },
+    {
       "bedFile": "none",
       "name": "ArabidopsisChr1",
       "tracks": [
@@ -48,19 +60,6 @@
         {"trackFile": "exampleData/Arabidopsis/co5.vg", "trackType": "graph"}
       ],
       "dataType": "mounted files",
-      "simplify": false,
-      "removeSequences": false
-    },
-
-    {
-      "name": "snp1kg-BRCA1",
-      "tracks": [
-        {"trackFile": "exampleData/internal/snp1kg-BRCA1.vg.xg", "trackType": "graph", "trackColorSettings": {"mainPalette": "greys", "auxPalette": "ygreys"}},
-        {"trackFile": "exampleData/internal/NA12878-BRCA1.sorted.gam", "trackType": "read"}
-      ],
-      "region": "17:1-100",
-      "bedFile": "exampleData/internal/snp1kg-BRCA1.bed",
-      "dataType": "built-in",
       "simplify": false,
       "removeSequences": false
     },
