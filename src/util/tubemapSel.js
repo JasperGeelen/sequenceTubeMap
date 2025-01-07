@@ -15,6 +15,8 @@ import externalConfig from "../config-global.mjs";
 import { defaultTrackColors } from "../common.mjs";
 
 const deepEqual = require("deep-equal");
+const selectionData = require('./selectionData.js');
+const Mediator = require('./selectionMediator.js');
 
 const DEBUG = false;
 
@@ -178,6 +180,10 @@ let bed;
 // main function to call from outside
 // which starts the process of creating a tube map visualization
 export function create(params) {
+
+  //Make sure that this tubemap can be redrawn from the other tubemap
+  Mediator.registerCallback(createTubeMap);
+
   // mandatory parameters: svgID (really a selector, but must be an ID selector), nodes, tracks
   // optional parameters: bed, clickableNodes, reads, showLegend
   svgID = params.svgID;
@@ -197,7 +203,7 @@ export function create(params) {
   config.clickableNodesFlag = params.clickableNodes || false;
   config.hideLegendFlag = params.hideLegend || false;
   const tr = createTubeMap();
-  if (!config.hideLegendFlag) drawLegend(tr);
+  if (!config.hideLegendFlag  && tr) drawLegend(tr);
 }
 
 // Deep copy something, but preserve array holes at the top level
@@ -421,6 +427,22 @@ export function setMappingQualityCutoff(value) {
 // main
 function createTubeMap() {
   console.log("Recreating tube map in", svgID);
+
+  let currSVG = document.getElementById(`sub_svg`);
+  if (selectionData.selectedTracks && selectionData.selectedNodes) {
+    inputNodes = selectionData.selectedNodes;
+    inputTracks = selectionData.selectedTracks;
+    inputNodes.unshift(undefined);
+    // And then leave a hole in the array at 0 which we won't iterate over.
+    delete inputNodes[0];
+    currSVG.style.height = '40vh';
+  } else {
+    svg = d3.select(svgID);
+    svg.selectAll("*").remove(); // clear svg for (re-)drawing
+    currSVG.style.height = '2vh';
+    return;
+  }
+
   trackRectangles = [];
   trackCurves = [];
   trackCorners = [];

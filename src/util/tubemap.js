@@ -16,6 +16,8 @@ import { defaultTrackColors } from "../common.mjs";
 
 const deepEqual = require("deep-equal");
 const levenshtein = require('js-levenshtein');
+const selectionData = require('./selectionData');
+const Mediator = require('./selectionMediator');
 
 const DEBUG = false;
 
@@ -186,6 +188,7 @@ let globalMajNodeMap;
 // main function to call from outside
 // which starts the process of creating a tube map visualization
 export function create(params) {
+
   // mandatory parameters: svgID (really a selector, but must be an ID selector), nodes, tracks
   // optional parameters: bed, clickableNodes, reads, showLegend
   svgID = params.svgID;
@@ -890,10 +893,6 @@ function LiteView(nodes, tracks) {
   })
 
 
-
-
-
-
   let leftovers = []
   ogTracks.forEach((ogTrack) => {
     let newTrack = tracks.find(track => track.name === ogTrack.name);
@@ -908,12 +907,17 @@ function LiteView(nodes, tracks) {
     for (let i = 0; i < ogTrack.indexSequence.length; i++) {
       let currNode = ogTrack.sequence[i]
       let currNodeRef = ogNodes[nodeMap.get(currNode)];
+
+      //Skip over insertions
+      if (currNodeRef.seq.length > minSVsize) {
+        continue;
+      }
+
       if (majNodeNames.includes(currNode)) {
         if (majNodeMap[currentNewNode].includes(currNode) && inBetween) {
           inBetween = false;
         }
         if (!majNodeMap[currentNewNode].includes(currNode) || i === ogTrack.indexSequence.length - 1) {
-
 
           //Record and proceed to next node
           let newSeq = newNodeList[newNodeMap.get(currentNewNode)].seq;
@@ -921,7 +925,7 @@ function LiteView(nodes, tracks) {
           let error = levenshtein(oldSeq, newSeq)
           //console.log("The error between old: " + oldSeq + " and new: " + newSeq + " is: " + error)
           let errorPercent = Math.round(error / newSeq.length * 100)
-          nodeErrorMap[currentNewNode][newTrack.name] = error
+          nodeErrorMap[currentNewNode][newTrack.name] = errorPercent
 
           currNewIdx += 1;
           if (currNewIdx < newTrack.sequence.length) {
@@ -938,12 +942,6 @@ function LiteView(nodes, tracks) {
           }
           oldSeq = []
           inBetween = true;
-
-          console.log("CURRENT NEW NODE")
-          console.log(currentNewNode)
-
-          console.log("CURRENT NEW INDX")
-          console.log(currNewIdx)
 
           if (majNodeMap[currentNewNode].includes(currNode)) {
             //instantly starts new node
@@ -1060,33 +1058,17 @@ function drawErrors(nodes, nodeErrorMap) {
   tracks.sort((a, b) => a.id - b.id);
   nodes.forEach((node) => {
     let x = node.x;
-    let y = node.y + 5
+    let y = node.y + 2.5
     let properOrder = nodeOrders[node.name]
     for (let i = 0; i < node.degree; i++) {
       let trackId = properOrder[i];
       let trackName = tracks[trackId].name
 
-      //if (tracks[trackId].otherTracks) {
-      if (false) {
-        // let otherTracks = tracks[trackId].otherTracks
-        // //Deal with multiTrack
-        // switch (multiTrackOption) {
-        //   // case multiTrackErrorOptions.TOPTHREE:
-        //   //   let topErrors = findTopErrors(otherTracks, nodeErrorMap[node.name], nrTopErrors);
-        //   //   y = drawTopErrors(topErrors, centerAligned, node, y)
-        //   //   break;
-
-        //   case multiTrackErrorOptions.LINES:
-        //     let errors = findTopErrors(otherTracks, nodeErrorMap[node.name], otherTracks.length);
-        //     y = drawLineDistribution(errors, node, y);
-        //     break;
-        
-        //   default:
-        //     let defErrors = findTopErrors(otherTracks, nodeErrorMap[node.name], otherTracks.length);
-        //     y = drawLineDistribution(defErrors, node, y);
-        //     break;
-
-        // }
+      if (tracks[trackId].otherTracks) {
+        let otherTracks = tracks[trackId].otherTracks
+        //Deal with multiTrack
+        //let errors = findTopErrors(otherTracks, nodeErrorMap[node.name], otherTracks.length);
+        //y = drawLineDistribution(errors, node, y);
       } else {
         //Normal tracks
         let error = nodeErrorMap[node.name][trackName];
@@ -1100,12 +1082,77 @@ function drawErrors(nodes, nodeErrorMap) {
           .attr("x", x)    
           .attr("y", y)         
           .attr("width", width)      
-          .attr("height", 5)       
+          .attr("height", 10)       
           .attr("fill", "red"); 
         y += 15
       }    
     }
   })
+}
+
+
+function nodeSelectionInfo(nodeName) {
+  let selectedTracks = []
+  let currentNode = getNodeByName(nodeName);
+
+  //Loop through each track in this node
+  currentNode.tracks.forEach((trackId) => {
+    let refTrack = inputTracks.find(track => track && track["id"] == trackId);
+    selectedTracks.push(deepCopy(refTrack))
+
+    //We need to check if the track contains other tracks within it
+    let newRefTrack = tracks.find(track => track && track["id"] == trackId);
+    if (newRefTrack.otherTracks) {
+      newRefTrack.otherTracks.forEach((otherTrackId) => {
+        let otherRefTrack = inputTracks.find(track => track && track["name"] == otherTrackId);
+        if (newRefTrack["name"] != otherRefTrack["name"]) {
+          selectedTracks.push(deepCopy(otherRefTrack))
+        }
+      });
+    }
+  });
+
+  //For each track cut the node sequence such that only nodes remain that are
+  //contained within the selected liteview node
+  let majNodes = globalMajNodeMap[nodeName]
+
+  selectedTracks.forEach((track) => {
+    let toBeRemovedNodes = []
+    //Loop from front
+    for (let i = 0; i < track.sequence.length; i++) {
+      let currNode = track.sequence[i]
+      if (majNodes.includes(currNode)) {
+        break;
+      } else {
+        toBeRemovedNodes.push(currNode)
+      }
+    }
+    //Loop from back
+    for (let i = track.sequence.length - 1; i >= 0; i--) {
+      let currNode = track.sequence[i]
+      if (majNodes.includes(currNode)) {
+        break;
+      } else {
+        toBeRemovedNodes.push(currNode)
+      }
+    }
+    //Remove irrelevant nodes from the sequence
+    track.sequence = track.sequence.filter(node => !toBeRemovedNodes.includes(node)) 
+  });
+  
+  //Retrieve the correct subset of Nodes
+  let selectedNodes = []
+  selectedTracks.forEach((track) => {
+    track.sequence.forEach((nodeName) => {
+      let refNode = inputNodes.find(node => node && node["name"] == nodeName);
+      selectedNodes.push(refNode)
+     })
+  })
+  selectedNodes = [...new Set(selectedNodes)]
+
+  selectionData.selectedTracks = selectedTracks
+  selectionData.selectedNodes = selectedNodes
+  Mediator.redrawSelection();
 }
 
 
@@ -3925,6 +3972,10 @@ function nodeSingleClick() {
   /* jshint validthis: true */
   // Get the node name
   const nodeName = d3.select(this).attr("id");
+
+  //Pass information to second tubeMap
+  nodeSelectionInfo(nodeName);
+
   let currentNode = getNodeByName(nodeName);
   console.log("Node ", nodeName, " is ", currentNode);
   if (currentNode === undefined) {
@@ -3949,7 +4000,10 @@ function nodeSingleClick() {
 
   console.log("Single Click");
   console.log("node show info callback", config.showInfoCallback);
-  config.showInfoCallback(nodeAttributes);
+
+  if (!config.liteViewFlag) {
+    config.showInfoCallback(nodeAttributes);
+  }
 }
 
 // Count the number of distinct reads that visit the given node object.
