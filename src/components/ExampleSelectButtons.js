@@ -21,7 +21,7 @@ class ExampleSelectButtons extends Component {
           color="primary"
           id="example1"
           onClick={() =>
-            this.handleClick(dataOriginTypes.EXAMPLE_1, "plainColors")
+            this.handleClick(dataOriginTypes.EXAMPLE_1, "grayScale")
           }
         >
           Indels and Polymorphisms only

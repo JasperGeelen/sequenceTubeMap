@@ -10,6 +10,8 @@ const colorMap = new Map([
   ["reds", "reds"],
   ["blues", "blues"],
   ["pale colors", "lightColors"],
+  ["dynamic grayscale", "grayScale"]
+
 ]);
 
 class RadioRow extends Component {
@@ -72,6 +74,7 @@ RadioRow.defaultProps = {
     "reds",
     "plainColors",
     "lightColors",
+    "grayScale"
   ],
 };
 

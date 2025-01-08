@@ -18,6 +18,7 @@ export default (
         "blues",
         "reds",
         "plainColors",
+        "grayScale"
       ]),
     }}
   >
