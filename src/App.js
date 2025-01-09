@@ -68,7 +68,9 @@ class App extends Component {
         colorSchemes: getColorSchemesFromTracks(this.defaultViewTarget.tracks),
         mappingQualityCutoff: 0,
         liteView: false,
-        liteViewInfo: {}
+        liteViewInfo: {},
+        mergeTracks: false,
+        overlapTracks: false
       },
       APIInterface: new ServerAPI(props.apiUrl)
     };

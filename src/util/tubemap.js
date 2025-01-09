@@ -103,7 +103,7 @@ export function generateGrayscaleRange(steps) {
   }
   const randomOrder = true;
   const startGrey = 200
-  const endGrey = 185
+  const endGrey = 180
   
   const stepSize = (endGrey - startGrey) / (steps - 1);
   let grayscale = [];
@@ -169,8 +169,6 @@ let extraLeft = []; // info whether nodes have to be moved further apart because
 let extraRight = []; // info whether nodes have to be moved further apart because of multiple 180° directional changes at the same horizontal order
 let maxOrder; // horizontal order of the rightmost node
 
-let globalAvailableColors;
-let globalColorMap = {}
 let enableSelection = false;
 
 const config = {
@@ -222,6 +220,21 @@ let globalMajNodeMap;
 // main function to call from outside
 // which starts the process of creating a tube map visualization
 export function create(params) {
+
+  selectionData.allColors = [
+      "#1f77b4",
+      "#ff7f0e",
+      "#2ca02c",
+      "#d62728",
+      "#9467bd",
+      "#8c564b",
+      "#e377c2",
+      "#7f7f7f",
+      "#bcbd22",
+      "#17becf",
+    ];
+  selectionData.availableColors = [...selectionData.allColors]
+  selectionData.colorMap = {}
 
   // mandatory parameters: svgID (really a selector, but must be an ID selector), nodes, tracks
   // optional parameters: bed, clickableNodes, reads, showLegend
@@ -432,6 +445,24 @@ export function setLiteViewFlag(value) {
   }
 }
 
+// set flag for merging tracks
+export function setMergeTracksFlag(value) {
+  if (config.mergeTracksFlag !== value) {
+    config.mergeTracksFlag = value;
+    svg = d3.select(svgID);
+    createTubeMap();
+  }
+}
+
+// set flag for overlapping tracks
+export function setOverlapTracksFlag(value) {
+  if (config.overlapTracksFlag !== value) {
+    config.overlapTracksFlag = value;
+    svg = d3.select(svgID);
+    createTubeMap();
+  }
+}
+
 export function updateLiteView(updateMap) {
   if (updateMap["minSVsize"]) {
     minSVsize = updateMap["minSVsize"];
@@ -524,15 +555,18 @@ function createTubeMap() {
   }
   if (tracks.length === 0) return;
 
-  //TODO: trigger to enable / disable selection
-  enableSelection = true;
-  globalColorMap = {}
-  globalAvailableColors = [...plainColors]
-
 
   nodeMap = generateNodeMap(nodes);
   generateTrackIndexSequences(tracks);
   generateNodeDegree();
+
+  //Assign grayscale colors to the 
+  selectionData.ogColors = {}
+  const colors = generateGrayscaleRange(tracks.length)
+  for (let i = 0; i < tracks.length; i++) {
+    let trackName = tracks[i].name
+    selectionData.ogColors[trackName] = colors[i];
+  }
 
   let nodeErrorMap = {}
   if (config.liteViewFlag) {
@@ -682,7 +716,7 @@ function LiteView(nodes, tracks) {
   //Order majorityNodes
   let ordMajNodeNames = []
   tracks.forEach((track) => {
-    if (!(ordMajNodeNames.length == majNodeNames.length)) {
+    if (!(ordMajNodeNames.length === majNodeNames.length)) {
       let idx = 0;
       track.sequence.forEach((nodeName) => {
         if (majNodeNames.includes(nodeName)) {
@@ -766,7 +800,7 @@ function LiteView(nodes, tracks) {
         let refNode = nodes[nodeMap.get(nodeName)]
         delCount += refNode.seq.length;
       } else {
-        if (delCount == 0) {
+        if (delCount === 0) {
           head = nodeName;
         }
         if (delCount >= svSize && head) {
@@ -815,7 +849,7 @@ function LiteView(nodes, tracks) {
       newSeq += currSeqNode.seq;
       majNodeList.push(currSeqNode.name);
     }
-    if (isHead && (currNode != "XXX")) {
+    if (isHead && (currNode !== "XXX")) {
       head = currNode;
       tail = currNode;
       isHead = false;
@@ -886,7 +920,7 @@ function LiteView(nodes, tracks) {
       if (!insideMod) newSequence.push(currNode.name);
       if (startMod) {
         let refNode = nodes[nodeMap.get(startMod.nodeName)];
-        if (startMod.type == modType.insertion) {
+        if (startMod.type === modType.insertion) {
           insertions.push(refNode);
           newSequence.push(startMod.nodeName);
         }
@@ -1012,53 +1046,52 @@ function LiteView(nodes, tracks) {
 
   
   //Merge tubes that only follow the majority nodes
-  // console.log("TRACK MODS")
-  // console.log(trackMods);
+  if (config.mergeTracksFlag) {
+    let trackNamesMods = Object.entries(trackMods);
+    let largestGroup = findLargestGroup(trackNamesMods);
+    let repTrack;
+    let count = 0;
+    let trackList = []
+    for (let i = 0; i < tracks.length; i++) {
+      let trackName = tracks[i].name
+      if (largestGroup.includes(trackName)) {
+        trackList.push(tracks[i].name)
+        if (!repTrack) {
+          repTrack = tracks[i]
+        } else {
+          count++;
+        }
+      }
+    }
+    if (repTrack) {
+      tracks = tracks.filter(track => !(trackList.includes(track.name) && track.name !== repTrack.name));
+      //repTrack.freq = 10000;
+      repTrack.otherTracks = trackList;
 
-  // let trackNamesMods = Object.entries(trackMods);
-  // let largestGroup = findLargestGroup(trackNamesMods);
-  // let repTrack;
-  // let count = 0;
-  // let trackList = []
-  // for (let i = 0; i < tracks.length; i++) {
-  //   let trackName = tracks[i].name
-  //   if (largestGroup.includes(trackName)) {
-  //     trackList.push(tracks[i].name)
-  //     if (!repTrack) {
-  //       repTrack = tracks[i]
-  //     } else {
-  //       count++;
-  //     }
-  //   }
-  // }
-  // if (repTrack) {
-  //   tracks = tracks.filter(track => !(trackList.includes(track.name) && track.name !== repTrack.name));
-  //   repTrack.freq = 10000;
-  //   repTrack.otherTracks = trackList;
-
-  //   //Assign grayscale colors to the 
-  //   // const colors = generateGrayscaleRange(trackList.length - 1)
-  //   // for (let i = 1; i < trackList.length; i++) {
-  //   //   let trackName = tracks[i]
-  //   //   selectionData.globalColors[trackName] = colors[i];
-  //   // }
+      //Assign grayscale colors to the 
+      const colors = generateGrayscaleRange(trackList.length - 1)
+      for (let i = 1; i < trackList.length; i++) {
+        let trackName = tracks[i]
+        selectionData.ogColors[trackName] = colors[i];
+      }
 
 
-  //   let repTrackIdx = tracks.indexOf(repTrack)
-  //   tracks.unshift(tracks[repTrackIdx]); // add element to beginning
-  //   tracks.splice(repTrackIdx + 1, 1); // remove 1 element from the middle
+      let repTrackIdx = tracks.indexOf(repTrack)
+      tracks.unshift(tracks[repTrackIdx]); // add element to beginning
+      tracks.splice(repTrackIdx + 1, 1); // remove 1 element from the middle
 
-  // }
+    }
+  }
 
   //Assign grayscale colors to liteview tracks
-  // const colors = generateGrayscaleRange(tracks.length)
-  // for (let i = 0; i < tracks.length; i++) {
-  //   let trackName = tracks[i].name
-  //   selectionData.globalColors[trackName] = colors[i];
-  // }
+  const colors = generateGrayscaleRange(tracks.length)
+  for (let i = 0; i < tracks.length; i++) {
+    let trackName = tracks[i].name
+    selectionData.ogColors[trackName] = colors[i];
+  }
 
-  // console.log("GLOBAL COLORS")
-  // console.log(selectionData.globalColors);
+  console.log("GLOBAL COLORS")
+  console.log(selectionData.ogColors);
 
 
 
@@ -1132,15 +1165,15 @@ function nodeSelectionInfo(nodeName) {
 
   //Loop through each track in this node
   currentNode.tracks.forEach((trackId) => {
-    let refTrack = inputTracks.find(track => track && track["id"] == trackId);
+    let refTrack = inputTracks.find(track => track && track["id"] === trackId);
     selectedTracks.push(deepCopy(refTrack))
 
     //We need to check if the track contains other tracks within it
-    let newRefTrack = tracks.find(track => track && track["id"] == trackId);
+    let newRefTrack = tracks.find(track => track && track["id"] === trackId);
     if (newRefTrack.otherTracks) {
       newRefTrack.otherTracks.forEach((otherTrackId) => {
-        let otherRefTrack = inputTracks.find(track => track && track["name"] == otherTrackId);
-        if (newRefTrack["name"] != otherRefTrack["name"]) {
+        let otherRefTrack = inputTracks.find(track => track && track["name"] === otherTrackId);
+        if (newRefTrack["name"] !== otherRefTrack["name"]) {
           selectedTracks.push(deepCopy(otherRefTrack))
         }
       });
@@ -1179,7 +1212,7 @@ function nodeSelectionInfo(nodeName) {
   let selectedNodes = []
   selectedTracks.forEach((track) => {
     track.sequence.forEach((nodeName) => {
-      let refNode = inputNodes.find(node => node && node["name"] == nodeName);
+      let refNode = inputNodes.find(node => node && node["name"] === nodeName);
       selectedNodes.push(refNode)
      })
   })
@@ -3232,6 +3265,9 @@ function calculateTrackWidth() {
     if (track.width !== NARROW_WIDTH) {
       allAreFour = false;
     }
+    if (track.hasOwnProperty("otherTracks")) {
+      track.width = Math.round((Math.log(track.otherTracks.length * 100 + 1) * NARROW_WIDTH));
+    }
   });
 
   if (allAreFour) {
@@ -3295,7 +3331,9 @@ function generateTrackColor(track, highlight) {
       }
     }
   } else {
-    if (config.showExonsFlag === false || highlight !== "plain") {
+
+
+   if (config.showExonsFlag === false || highlight !== "plain") {
       // Don't repeat the color of the first track (reference) to highilight is better.
       // TODO: Allow using color 0 for other schemes not the same as the one for the reference path.
       // TODO: Stop reads from taking this color?
@@ -3312,7 +3350,9 @@ function generateTrackColor(track, highlight) {
       const colorSet = getColorSet(config.exonColors);
       trackColor = colorSet[track.id % colorSet.length];
     }
+    return selectionData.ogColors[track.name];
   }
+
   return trackColor;
 }
 
@@ -4870,8 +4910,8 @@ function trackMouseOver() {
   // is over a curved section of a read.
   
   //If the tube has not been selected yet, mark with first available color
-  if (!globalColorMap[trackName] && enableSelection) {
-    const color = globalAvailableColors[0];
+  if (!selectionData.colorMap[trackName]) {
+    const color = selectionData.availableColors[0];
     d3.selectAll(`.track${trackID}`).style("fill", color);
   }
 }
@@ -4889,7 +4929,7 @@ function trackMouseOut() {
   const trackName = d3.select(this).attr("trackName");
 
   //If it has a selection color, do not reset the color
-  if (globalColorMap[trackName] && enableSelection) {
+  if (selectionData.colorMap[trackName]) {
     return
   }
   d3.selectAll(`.track${trackID}`).each(function clearTrackHighlight() {
@@ -4950,7 +4990,15 @@ function trackSingleClick() {
     return;
   }
   let track_attributes = [];
-  track_attributes.push(["Name", current_track.name]);
+  //Display the genome name(s) that this track represents
+  if (current_track.otherTracks) {
+    let otherTracks = current_track.otherTracks
+    for (let i = 0; i < otherTracks.length; i++) {
+      track_attributes.push([otherTracks[i].toString(), ""])
+    }
+  } else {
+    track_attributes.push(["Name", current_track.name]);
+  }
   if (current_track.type === "read") {
     track_attributes.push(["Sample Name", current_track.sample_name]);
     track_attributes.push([
@@ -4964,29 +5012,22 @@ function trackSingleClick() {
     track_attributes.push(["Path Info", getPathInfo(current_track)]);
   }
 
-  if (enableSelection) {
-    if (globalColorMap[current_track.name]) {
-      //Color is already selected, return to original and make color available
-      const color = globalColorMap[current_track.name]
-      delete globalColorMap[current_track.name];
-  
-      const colorSet = getColorSet(config.colorSchemes[current_track.sourceTrackID].auxPalette);
-      const trackColor = colorSet[trackID % colorSet.length];
-      d3.selectAll(`.track${trackID}`).style("fill", trackColor);
-  
-      globalAvailableColors.push(color)
-      globalAvailableColors.sort((a, b) => plainColors.indexOf(a) - plainColors.indexOf(b));
-    } else {
-      //Color was not selected, use first available color
-      const color = globalAvailableColors.shift()
-      globalColorMap[current_track.name] = color
-      d3.selectAll(`.track${trackID}`).style("fill", color);
-    }
+  if (selectionData.colorMap[current_track.name]) {
+    const color = selectionData.colorMap[current_track.name]
+    delete selectionData.colorMap[current_track.name];
+    d3.selectAll(`.track${trackID}`).style("fill", selectionData.ogColors[current_track.name]);
+
+    selectionData.availableColors.push(color)
+    selectionData.availableColors.sort((a, b) => selectionData.allColors.indexOf(a) - selectionData.allColors.indexOf(b));
   } else {
-    console.log("Single Click");
-    console.log("read path");
-    config.showInfoCallback(track_attributes);
+    const color = selectionData.availableColors.shift()
+    selectionData.colorMap[current_track.name] = color
+    d3.selectAll(`.track${trackID}`).style("fill", color);
   }
+  
+  // console.log("Single Click");
+  // console.log("read path");
+  // config.showInfoCallback(track_attributes);
   
 
   
@@ -4994,7 +5035,12 @@ function trackSingleClick() {
 
 // show track name when hovering mouse
 function getPopUpTrackText(trackid) {
-  return trackid;
+  let refTrack = inputTracks.find(track => track && track["name"] === trackid);
+  if (refTrack && refTrack.otherTracks) {
+    return refTrack.otherTracks;
+  } else {
+    return trackid;
+  }
 }
 
 // Redraw with current node moved to beginning

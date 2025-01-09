@@ -2676,22 +2676,10 @@ function generateTrackColor(track, highlight) {
       }
     }
   } else {
-    if (config.showExonsFlag === false || highlight !== "plain") {
-      // Don't repeat the color of the first track (reference) to highilight is better.
-      // TODO: Allow using color 0 for other schemes not the same as the one for the reference path.
-      // TODO: Stop reads from taking this color?
-      const auxColorSet = getColorSet(config.colorSchemes[sourceID].auxPalette);
-      const primaryColorSet = getColorSet(
-        config.colorSchemes[sourceID].mainPalette
-      );
-      if (track.id === 0) {
-        trackColor = primaryColorSet[0];
-      } else {
-        trackColor = auxColorSet[(track.id - 1) % auxColorSet.length];
-      }
+    if (selectionData.colorMap[track.name]) {
+      return selectionData.colorMap[track.name]
     } else {
-      const colorSet = getColorSet(config.exonColors);
-      trackColor = colorSet[track.id % colorSet.length];
+      return selectionData.ogColors[track.name];
     }
   }
   return trackColor;
@@ -4238,10 +4226,16 @@ function getTrackByID(trackID) {
 function trackMouseOver() {
   /* jshint validthis: true */
   const trackID = d3.select(this).attr("trackID");
+  const trackName = d3.select(this).attr("trackName");
   // TODO: We want to also .raise() here, but it makes Firefox 124.0.2 on Mac
   // lose the mouseout and immediately trigger another mouseover, if the mouse
   // is over a curved section of a read.
-  d3.selectAll(`.track${trackID}`).style("fill", "url(#patternA)");
+
+  //If the tube has not been selected yet, mark with first available color
+  if (!selectionData.colorMap[trackName]) {
+    const color = selectionData.availableColors[0];
+    d3.selectAll(`.track${trackID}`).style("fill", color);
+  }
 }
 
 // Highlight node on mouseover
@@ -4254,6 +4248,10 @@ function nodeMouseOver() {
 function trackMouseOut() {
   /* jshint validthis: true */
   const trackID = d3.select(this).attr("trackID");
+  const trackName = d3.select(this).attr("trackName");
+  if (selectionData.colorMap[trackName]) {
+    return
+  }
   d3.selectAll(`.track${trackID}`).each(function clearTrackHighlight() {
     const c = d3.select(this).attr("color");
     d3.select(this).style("fill", c);
@@ -4324,9 +4322,23 @@ function trackSingleClick() {
     track_attributes.push(["Mapping Quality", current_track.mapping_quality]);
     track_attributes.push(["Path Info", getPathInfo(current_track)]);
   }
-  console.log("Single Click");
-  console.log("read path");
-  config.showInfoCallback(track_attributes);
+
+  if (selectionData.colorMap[current_track.name]) {
+    const color = selectionData.colorMap[current_track.name]
+    delete selectionData.colorMap[current_track.name];
+    d3.selectAll(`.track${trackID}`).style("fill", selectionData.ogColors[current_track.name]);
+
+    selectionData.availableColors.push(color)
+    selectionData.availableColors.sort((a, b) => selectionData.allColors.indexOf(a) - selectionData.allColors.indexOf(b));
+  } else {
+    const color = selectionData.availableColors.shift()
+    selectionData.colorMap[current_track.name] = color
+    d3.selectAll(`.track${trackID}`).style("fill", color);
+  }
+
+  // console.log("Single Click");
+  // console.log("read path");
+  // config.showInfoCallback(track_attributes);
 }
 
 // show track name when hovering mouse

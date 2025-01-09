@@ -93,16 +93,17 @@ export const inputTracks5 = [
 
 // prettier-ignore
 export const inputTracks6 = [
-  { id: 0, sourceTrackID: 0, name: 'Track A', indexOfFirstBase: 1, sequence: ['1', '2', '3', '4']},
-  { id: 1, sourceTrackID: 0, name: 'Track B', indexOfFirstBase: 1, sequence: ['1', '2', '3', '4']},
-  { id: 2, sourceTrackID: 0, name: 'Track C', indexOfFirstBase: 1, sequence: ['1', '2', '3', '4']},
-  { id: 3, sourceTrackID: 0, name: 'Track D', indexOfFirstBase: 1, sequence: ['1', '2', '3', '4']},
-  { id: 4, sourceTrackID: 0, name: 'Track E', indexOfFirstBase: 1, sequence: ['1', '2', '3', '4']},
-  { id: 5, sourceTrackID: 0, name: 'Track F', indexOfFirstBase: 1, sequence: ['1', '2', '3', '4']},
-  { id: 6, sourceTrackID: 0, name: 'Track G', indexOfFirstBase: 1, sequence: ['1', '2', '3', '14', '4']},
-  { id: 7, sourceTrackID: 0, name: 'Track H', indexOfFirstBase: 1, sequence: ['1', '10', '2', '12', '3', '4']},
-  { id: 8, sourceTrackID: 0, name: 'Track I', indexOfFirstBase: 1, sequence: ['1', '11', '2', '13', '3', '4']},
-  { id: 9, sourceTrackID: 0, name: 'Track J', indexOfFirstBase: 1, sequence: ['1', '4']},
+  { id: 1, sourceTrackID: 0, name: 'Track A', indexOfFirstBase: 1, sequence: ['1', '2', '3', '4']},
+  { id: 2, sourceTrackID: 0, name: 'Track B', indexOfFirstBase: 1, sequence: ['1', '2', '3', '4']},
+  { id: 3, sourceTrackID: 0, name: 'Track C', indexOfFirstBase: 1, sequence: ['1', '2', '3', '4']},
+  { id: 4, sourceTrackID: 0, name: 'Track D', indexOfFirstBase: 1, sequence: ['1', '2', '3', '4']},
+  { id: 5, sourceTrackID: 0, name: 'Track E', indexOfFirstBase: 1, sequence: ['1', '2', '3', '4']},
+  { id: 6, sourceTrackID: 0, name: 'Track F', indexOfFirstBase: 1, sequence: ['1', '2', '3', '4']},
+  { id: 7, sourceTrackID: 0, name: 'Track G', indexOfFirstBase: 1, sequence: ['1', '2', '3', '4']},
+  { id: 8, sourceTrackID: 0, name: 'Track H', indexOfFirstBase: 1, sequence: ['1', '2', '3', '14', '4']},
+  { id: 9, sourceTrackID: 0, name: 'Track I', indexOfFirstBase: 1, sequence: ['1', '10', '2', '12', '3', '4']},
+  { id: 10, sourceTrackID: 0, name: 'Track J', indexOfFirstBase: 1, sequence: ['1', '11', '2', '13', '3', '4']},
+  { id: 11, sourceTrackID: 0, name: 'Track K', indexOfFirstBase: 1, sequence: ['1', '4']},
 ];
 
 export const k3138 = `

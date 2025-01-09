@@ -229,7 +229,6 @@ class VisualizationOptions extends Component {
                     </React.Fragment>
                   )}
                 </FormGroup>
-
                 <FormGroup>
                   <h5>SV View</h5>
                   <FormGroup check>
@@ -253,6 +252,26 @@ class VisualizationOptions extends Component {
                       ref={this.minSVSizeRef}
                       style={{ marginLeft: "10px", width: "80px" }}
                     />
+                  <FormGroup check>
+                    <Label check>
+                      <Input
+                        type="checkbox"
+                        defaultValue={visOptions.mergeTracks}
+                        onChange={() => toggleFlag("mergeTracks")}
+                      />
+                      Merge Duplicate Tracks
+                    </Label>
+                  </FormGroup>
+                  <FormGroup check>
+                    <Label check>
+                      <Input
+                        type="checkbox"
+                        defaultValue={visOptions.overlapTracks}
+                        onChange={() => toggleFlag("overlapTracks")}
+                      />
+                      Allow Overlapping Tracks
+                    </Label>
+                  </FormGroup>
                   </FormGroup>
                   <Button
                     color="secondary"

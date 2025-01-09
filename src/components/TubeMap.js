@@ -52,6 +52,8 @@ class TubeMap extends Component {
     tubeMap.setColoredNodes(visOptions.coloredNodes);
     tubeMap.setLiteViewFlag(visOptions.liteView)
     tubeMap.updateLiteView(visOptions.liteViewInfo)
+    tubeMap.setOverlapTracksFlag(visOptions.overlapTracks)
+    tubeMap.setMergeTracksFlag(visOptions.mergeTracks)
 
     for (let key of Object.keys(visOptions.colorSchemes)) {
       // Apply color-by-mapping-quality parameter to all the schemes.
