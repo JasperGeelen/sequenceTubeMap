@@ -215,7 +215,8 @@ let minSVsize = 10;
 
 let nodeOrders = {};
 let globalNodeErrorMap = {}
-let globalMajNodeMap;
+let globalMajNodeMap = {};
+let selectedNode;
 
 // main function to call from outside
 // which starts the process of creating a tube map visualization
@@ -225,7 +226,6 @@ export function create(params) {
       "#1f77b4",
       "#ff7f0e",
       "#2ca02c",
-      "#d62728",
       "#9467bd",
       "#8c564b",
       "#e377c2",
@@ -992,7 +992,7 @@ function LiteView(nodes, tracks) {
           let newSeq = newNodeList[newNodeMap.get(currentNewNode)].seq;
           oldSeq = oldSeq.join('')
           let error = levenshtein(oldSeq, newSeq)
-          console.log("The error between old: " + oldSeq + " and new: " + newSeq + " is: " + error)
+          //console.log("The error between old: " + oldSeq + " and new: " + newSeq + " is: " + error)
           let errorPercent = Math.round(error / newSeq.length * 100)
           nodeErrorMap[currentNewNode][newTrack.name] = errorPercent
 
@@ -1135,8 +1135,9 @@ function drawErrors(nodes, nodeErrorMap) {
       if (tracks[trackId].otherTracks) {
         let otherTracks = tracks[trackId].otherTracks
         //Deal with multiTrack
-        //let errors = findTopErrors(otherTracks, nodeErrorMap[node.name], otherTracks.length);
-        //y = drawLineDistribution(errors, node, y);
+        let trackWidth = tracks[trackId].width;
+        let errors = findTopErrors(otherTracks, nodeErrorMap[node.name], otherTracks.length);
+        y = drawLineDistribution(errors, node, y, trackWidth);
       } else {
         //Normal tracks
         let error = nodeErrorMap[node.name][trackName];
@@ -1156,6 +1157,69 @@ function drawErrors(nodes, nodeErrorMap) {
       }    
     }
   })
+}
+
+function findTopErrors(otherTracks, errors, maxReturn) {
+  let errorList = Object.entries(errors);
+  const multiTrackItems = errorList.filter(item => otherTracks.includes(item[0]));
+  multiTrackItems.sort((a, b) => b[1] - a[1]);
+  let returnValues = []
+  for (let i = 0; i < maxReturn; i++) {
+    returnValues.push(multiTrackItems[i]);
+  }
+  return returnValues;
+}
+
+function drawLineDistribution(errors, node, y, trackWidth) {
+  //Rectangle (line) information
+  let width = 1;
+  let height = 10;
+  //Draw Line
+  y += trackWidth / 3;
+  let x = node.x
+  svg
+    .append("rect")
+    .attr("x", x)    
+    .attr("y", y)         
+    .attr("width", node.pixelWidth)      
+    .attr("height", 1) 
+    .style('opacity', 0.5)     
+    .attr("fill", "gray"); 
+
+  //Draw individual data points
+  y -= height / 2
+  errors.forEach((error) => {
+    //For debugging purposes
+    let decimalError
+    if (error == null) {
+      console.log("NON EXISTING ERROR")
+      console.log(error)
+      decimalError = 1.0
+    } else {
+      decimalError = error[1] / 100
+    }
+    let x = node.x + decimalError * node.pixelWidth;
+    svg
+      .append("rect")
+      .attr("x", x)    
+      .attr("y", y)         
+      .attr("width", width)      
+      .attr("height", height)       
+      .attr("fill", "red"); 
+
+  });
+  y += height / 2
+  y += (trackWidth / 3) * 2;
+  return y
+}
+
+function jitter(x, length) {
+  let radius = 0.5
+}
+
+export function showMessage() {
+  console.log("successfully called method from other file")
+  console.log(tracks);
 }
 
 
@@ -3053,6 +3117,8 @@ function generateSingleLaneAssignment(assignment, order) {
     }
   })
 
+  
+
   assignment.forEach((node) => {
     if (node.node !== null) {
       nodes[node.node].topLane = currentLane;
@@ -3066,8 +3132,10 @@ function generateSingleLaneAssignment(assignment, order) {
       prevNameIsNull = true;
     }
 
+    let nodeHeightIncreased = false
+
     node.tracks.sort(compareByIdealLane);
-    node.tracks.forEach((track) => {
+    node.tracks.forEach((track, index, array) => {
       track.lane = currentLane;
       if (track.trackID === prevTrack && node.node === null && prevNameIsNull) {
         currentY += 10;
@@ -3078,10 +3146,36 @@ function generateSingleLaneAssignment(assignment, order) {
         potentialAdjustmentValues.add(track.idealY - currentY);
       }
       currentLane += 1;
-      currentY += tracks[track.trackID].width;
-      if (node.node !== null) {
-        nodes[node.node].contentHeight += tracks[track.trackID].width;
+      
+      if (node.node === null || !nodes[node.node].mainGroup) {
+        currentY += tracks[track.trackID].width;
       }
+      if (node.node !== null && nodes[node.node].mainGroup && index === array.length - 1) {
+        currentY += tracks[track.trackID].width;
+      }
+
+      if (config.overlapTracksFlag) {
+        console.log(nodes[node.node])
+        let isMajorityNode = false
+        if (nodes[node.node]) {
+          isMajorityNode = globalMajNodeMap.hasOwnProperty(nodes[node.node].name)
+        }
+        
+        console.log(isMajorityNode)
+        if (node.node !== null) {
+          if (!nodeHeightIncreased && isMajorityNode) {
+            nodes[node.node].contentHeight += tracks[track.trackID].width
+            nodeHeightIncreased = true;
+          } else if (!isMajorityNode) {
+            nodes[node.node].contentHeight += tracks[track.trackID].width
+          }
+        } 
+      } else {
+        if (node.node !== null) {
+          nodes[node.node].contentHeight += tracks[track.trackID].width;
+        }
+      }
+
       prevTrack = track.trackID;
     });
     currentY += 25;
@@ -4049,9 +4143,28 @@ function nodeSingleClick() {
   /* jshint validthis: true */
   // Get the node name
   const nodeName = d3.select(this).attr("id");
+  const d3_element = d3.select(this)
 
-  //Pass information to second tubeMap
-  nodeSelectionInfo(nodeName);
+  if (config.liteViewFlag) {
+    if (!selectedNode || selectedNode.attr("id") !== nodeName) {
+      //Pass information to second tubeMap
+      nodeSelectionInfo(nodeName);
+      //select node
+      if (selectedNode) {
+        selectedNode.style("stroke-width", "2px")
+      }
+      d3.select(this).style("stroke-width", "6px")
+      selectedNode = d3_element
+    } else {
+      //deselect node
+      d3.select(this).style("stroke-width", "2px")
+      selectionData.selectedTracks = null;
+      selectionData.selectedNodes = null;
+      Mediator.redrawSelection();
+      selectedNode = null;
+    }
+  }
+
 
   let currentNode = getNodeByName(nodeName);
   console.log("Node ", nodeName, " is ", currentNode);
@@ -4914,12 +5027,22 @@ function trackMouseOver() {
     const color = selectionData.availableColors[0];
     d3.selectAll(`.track${trackID}`).style("fill", color);
   }
+  d3.selectAll(`.track${trackID}`).each(function () {
+    this.parentNode.appendChild(this);
+  });
 }
 
 // Highlight node on mouseover
 function nodeMouseOver() {
   /* jshint validthis: true */
-  d3.select(this).style("stroke-width", "4px");
+  const nodeName = d3.select(this).attr("id");
+  if (config.liteViewFlag) {
+    if (!selectedNode || nodeName !== selectedNode.attr("id")) {
+      d3.select(this).style("stroke-width", "4px");
+    } 
+  } else {
+    d3.select(this).style("stroke-width", "4px");
+  }
 }
 
 // Restore original track appearance on mouseout
@@ -4941,11 +5064,21 @@ function trackMouseOut() {
 // Restore original node appearance on mouseout
 function nodeMouseOut() {
   /* jshint validthis: true */
-  d3.select(this).style("stroke-width", "2px");
+  const nodeName = d3.select(this).attr("id")
+  if (config.liteViewFlag) {
+    if (!selectedNode || nodeName !== selectedNode.attr("id")) {
+      d3.select(this).style("stroke-width", "2px");
+    }
+  } else {
+    d3.select(this).style("stroke-width", "2px");
+  }
 }
 
 // Move clicked track to first position
 function trackDoubleClick() {
+  if (config.liteViewFlag) {
+    return;
+  }
   /* jshint validthis: true */
   const trackID = d3.select(this).attr("trackID");
   const index = getInputTrackIndexByID(trackID);
