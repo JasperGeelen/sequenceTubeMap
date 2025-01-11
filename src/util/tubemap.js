@@ -3147,21 +3147,21 @@ function generateSingleLaneAssignment(assignment, order) {
       }
       currentLane += 1;
       
-      if (node.node === null || !nodes[node.node].mainGroup) {
-        currentY += tracks[track.trackID].width;
-      }
-      if (node.node !== null && nodes[node.node].mainGroup && index === array.length - 1) {
-        currentY += tracks[track.trackID].width;
-      }
+      
 
       if (config.overlapTracksFlag) {
-        console.log(nodes[node.node])
         let isMajorityNode = false
         if (nodes[node.node]) {
           isMajorityNode = globalMajNodeMap.hasOwnProperty(nodes[node.node].name)
         }
+
+        if (node.node === null || !isMajorityNode) {
+          currentY += tracks[track.trackID].width;
+        }
+        if (node.node !== null && isMajorityNode && index === array.length - 1) {
+          currentY += tracks[track.trackID].width;
+        }
         
-        console.log(isMajorityNode)
         if (node.node !== null) {
           if (!nodeHeightIncreased && isMajorityNode) {
             nodes[node.node].contentHeight += tracks[track.trackID].width
@@ -3171,6 +3171,7 @@ function generateSingleLaneAssignment(assignment, order) {
           }
         } 
       } else {
+        currentY += tracks[track.trackID].width;
         if (node.node !== null) {
           nodes[node.node].contentHeight += tracks[track.trackID].width;
         }
