@@ -106,7 +106,7 @@ const DOWNLOAD_DATA_PATH = config.tempDirPath;
 const SERVER_PORT = process.env.SERVER_PORT || config.serverPort || 3000;
 const SERVER_BIND_ADDRESS = config.serverBindAddress || undefined;
 
-const CUSTOM_DATA_PATH = "/home/jgeelen/panva-data-disc/mc-pangenome/chrom-alignments/"
+const CUSTOM_DATA_PATH = "/home/jgeelen/data/panva-data-disc/mc-pangenome/chrom-alignments/"
 
 // This holds a collection of all the absolute path root directories that the
 // server is allowed to access on behalf of users.

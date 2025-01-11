@@ -568,6 +568,19 @@ function createTubeMap() {
     selectionData.ogColors[trackName] = colors[i];
   }
 
+
+  if (config.liteViewFlag) {
+    nodeMap = generateNodeMap(nodes);
+    generateTrackIndexSequences(tracks);
+    generateNodeDegree();
+
+    let [mergedTracks, correctedNodes] = mergeTrackParts(tracks, nodes);
+    tracks = mergedTracks
+    nodes = correctedNodes
+
+  }
+
+
   let nodeErrorMap = {}
   if (config.liteViewFlag) {
     let [newNodes, newTracks, newNodeErrorMap] = LiteView(nodes, tracks);
@@ -1213,13 +1226,60 @@ function drawLineDistribution(errors, node, y, trackWidth) {
   return y
 }
 
-function jitter(x, length) {
-  let radius = 0.5
+function mergeTrackParts(tracks, nodes) {
+  let trackNames = tracks.map(track => track.name);
+  let collection = {}
+  trackNames.forEach((trackName) => {
+    const trackId = trackName.split('#')[0]
+    if (trackId in collection) {
+      collection[trackId].push(trackName);
+    } else {
+      collection[trackId] = [trackName]
+    }
+  })
+  console.log("merge Tracks results")
+
+  let newTracks = []
+  let removedTrackIds = []
+
+  const trackIds = Object.keys(collection)
+  trackIds.forEach((trackId) => {
+    if (trackId === "_MINIGRAPH_") {
+      return;
+    }
+    let currTrackNames = collection[trackId]
+    if (currTrackNames.length > 1) {
+      currTrackNames = sortByBracketNumber(currTrackNames);
+      let newTrack = tracks.find(track => track.name === currTrackNames[0]);
+      for(let i = 1; i < currTrackNames.length; i++) {
+        let nextTrack = tracks.find(track => track.name === currTrackNames[i]);
+        removedTrackIds.push(nextTrack.id)
+        //newTrack.indexSequence.push(nextTrack.indexSequence)
+        newTrack.sequence = newTrack.sequence.concat(nextTrack.sequence)
+      }
+      newTracks.push(newTrack);      
+    } else {
+      newTracks.push(tracks.find(track => track.name === currTrackNames[0]));
+    }
+  })
+
+  nodes.forEach((node) => {
+    node.tracks = node.tracks.filter(trackId => !removedTrackIds.includes(trackId));
+  })
+
+  console.log(newTracks);
+  return [newTracks, nodes]
 }
 
-export function showMessage() {
-  console.log("successfully called method from other file")
-  console.log(tracks);
+function sortByBracketNumber(arr) {
+  return arr.sort((a, b) => {
+    // Extract numbers between brackets
+    const numA = parseInt(a.match(/\[(\d+)\]/)[1], 10);
+    const numB = parseInt(b.match(/\[(\d+)\]/)[1], 10);
+    
+    // Sort numerically
+    return numA - numB;
+  });
 }
 
 
