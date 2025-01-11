@@ -11,5 +11,5 @@ build/
 *~
 
 exampleData/Arabidopsis/ 
-server.mjs
-config.json
+src/server.mjs
+src/config.json
