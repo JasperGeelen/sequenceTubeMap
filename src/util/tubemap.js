@@ -121,6 +121,17 @@ export function generateGrayscaleRange(steps) {
   return grayscale;
 }
 
+function findMedian(arr) {  
+  arr.sort((a, b) => a - b);  
+  const middleIndex = Math.floor(arr.length / 2);  
+
+  if (arr.length % 2 === 0) {  
+      return (arr[middleIndex - 1] + arr[middleIndex]) / 2;  
+  } else {  
+      return arr[middleIndex];  
+  }  
+}
+
 // Font stack we will use in the SVG
 // We start with Courier New because it exists a lot more places than
 // "Courier", and because tools like Inkscape can't interpret the text properly
@@ -235,6 +246,10 @@ export function create(params) {
     ];
   selectionData.availableColors = [...selectionData.allColors]
   selectionData.colorMap = {}
+
+  selectionData.selectedNodes = null;
+  selectionData.selectedTracks = null;
+  Mediator.redrawSelection();
 
   // mandatory parameters: svgID (really a selector, but must be an ID selector), nodes, tracks
   // optional parameters: bed, clickableNodes, reads, showLegend
@@ -570,6 +585,7 @@ function createTubeMap() {
 
 
   if (config.liteViewFlag) {
+
     nodeMap = generateNodeMap(nodes);
     generateTrackIndexSequences(tracks);
     generateNodeDegree();
@@ -580,6 +596,8 @@ function createTubeMap() {
 
   }
 
+  // Start time
+  let start = Date.now();
 
   let nodeErrorMap = {}
   if (config.liteViewFlag) {
@@ -591,6 +609,13 @@ function createTubeMap() {
     nodeErrorMap = newNodeErrorMap
     globalNodeErrorMap = newNodeErrorMap
   }
+
+  // End time
+  let end = Date.now();
+  let duration = end - start;
+  console.log(`LITEVIEW DURATION: ${duration / 1000} seconds`);
+
+
 
   nodeMap = generateNodeMap(nodes);
   generateTrackIndexSequences(tracks);
@@ -703,11 +728,21 @@ function LiteView(nodes, tracks) {
   //Settings
   const majorityThreshold = 0.5;
   const minTrackLength = 1;
-  const svSize = minSVsize;
+  //const svSize = minSVsize;
+  const svSize = 1000;
   const p = 0.1
 
   //Remove Small tracks
-  tracks = tracks.filter(track => track.sequence.length > minTrackLength);
+  let sequenceLengths = []
+  tracks.forEach((track) => {
+    sequenceLengths.push(track.sequence.length)
+  })
+  const median = findMedian(sequenceLengths)
+  if (median > 100) {
+    tracks = tracks.filter(track => track.sequence.length > 50);
+    let banned_list = ["31_mammo_1#0#ma1#0[17349958]", "40_etna_2#0#et1#0[21722936]", "43_elk_1#0#el1#0[20780875]"]
+    tracks = tracks.filter(track => !banned_list.includes(track.name))
+  }
 
   //Keep a copy of the old tracks
   let ogTracks = deepCopy(tracks);
@@ -759,6 +794,12 @@ function LiteView(nodes, tracks) {
   //To keep track where cuts have already been placed
   let ogMajNodeNames = deepCopy(majNodeNames);
 
+  console.log("MAJORITY NODES")
+  console.log(majNodeNames)
+  console.log(tracks)
+  console.log(nodes)
+
+  
 
   //Find insertion cuts
   tracks.forEach((track) => {
@@ -915,6 +956,25 @@ function LiteView(nodes, tracks) {
       }
     }
 
+    //Get last majority node in track
+    let lastNewNode;
+    for (let i = track.sequence.length - 1; i >= 0; i--) {
+      let nodeName = track.sequence[i]
+      if (majNodeNames.includes(nodeName)) {
+        for (let j = newNodeList.length - 1; j >= 0; j--) {
+          if (majNodeMap[newNodeList[j].name].includes(nodeName)) {
+            lastNewNode = newNodeList[j].name
+            //console.log("Found first node: " + newNodeList[j].name);
+            break;
+          }
+        }
+        if (lastNewNode) {
+          break;
+        }
+      }
+    }
+
+
     //Loop through new node list, take care of any SV's come across
     let foundStartNode = false;
     let newSequence = []
@@ -938,6 +998,9 @@ function LiteView(nodes, tracks) {
           newSequence.push(startMod.nodeName);
         }
         insideMod = true;
+      }
+      if (currNode.name === lastNewNode) {
+        break;
       } 
     }
     track.sequence = newSequence;
@@ -972,14 +1035,6 @@ function LiteView(nodes, tracks) {
   console.log(nodes)
 
   //Computing the simplification errors
-  ogTracks.forEach((ogTrack) => {
-    let newTrack = tracks.find(track => track.name === ogTrack.name);
-
-    let currNewIdx = 0;
-    let currentNewNode = newTrack.sequence[0]
-  })
-
-
   let leftovers = []
   ogTracks.forEach((ogTrack) => {
     let newTrack = tracks.find(track => track.name === ogTrack.name);
@@ -1005,7 +1060,10 @@ function LiteView(nodes, tracks) {
           let newSeq = newNodeList[newNodeMap.get(currentNewNode)].seq;
           oldSeq = oldSeq.join('')
           let error = levenshtein(oldSeq, newSeq)
-          //console.log("The error between old: " + oldSeq + " and new: " + newSeq + " is: " + error)
+          if (ogTrack.name === "19_kz_9#0#kz2#0[3637]") {
+            console.log("The error between old: " + oldSeq + " and new: " + newSeq + " is: " + error)
+          }
+          
           let errorPercent = Math.round(error / newSeq.length * 100)
           nodeErrorMap[currentNewNode][newTrack.name] = errorPercent
 
@@ -1287,6 +1345,9 @@ function nodeSelectionInfo(nodeName) {
   let selectedTracks = []
   let currentNode = getNodeByName(nodeName);
 
+  console.log("SELECTED NODE INFO") 
+  console.log(nodeName)
+
   //Loop through each track in this node
   currentNode.tracks.forEach((trackId) => {
     let refTrack = inputTracks.find(track => track && track["id"] === trackId);
@@ -1303,6 +1364,8 @@ function nodeSelectionInfo(nodeName) {
       });
     }
   });
+
+  console.log(selectedTracks)
 
   //For each track cut the node sequence such that only nodes remain that are
   //contained within the selected liteview node
@@ -1341,6 +1404,8 @@ function nodeSelectionInfo(nodeName) {
      })
   })
   selectedNodes = [...new Set(selectedNodes)]
+
+  console.log(selectedNodes)
 
   selectionData.selectedTracks = selectedTracks
   selectionData.selectedNodes = selectedNodes
@@ -4180,7 +4245,7 @@ function colorNodes(nodeName) {
 }
 
 function getPopUpNodeText(node) {
-  return `Node ID: ${node.name}` + (node.switched ? ` (reversed)` : ``) + `\n`;
+  return `Node ID: ${node.name}` + (node.switched ? ` (reversed)` : ``) + `\n` + "Length: " + node.sequenceLength + "\n";
 }
 
 // Get any node object by name.

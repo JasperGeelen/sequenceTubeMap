@@ -443,6 +443,10 @@ function createTubeMap() {
     return;
   }
 
+  console.log("SELECTION INPUT INFO")
+  console.log(inputNodes)
+  console.log(inputTracks)
+
   trackRectangles = [];
   trackCurves = [];
   trackCorners = [];
@@ -3354,7 +3358,7 @@ function colorNodes(nodeName) {
 }
 
 function getPopUpNodeText(node) {
-  return `Node ID: ${node.name}` + (node.switched ? ` (reversed)` : ``) + `\n`;
+  return `Node ID: ${node.name}` + (node.switched ? ` (reversed)` : ``) + `\n` + "Length: " + node.sequenceLength + "\n";
 }
 
 // Get any node object by name.
@@ -3389,20 +3393,22 @@ function nodeSingleClick() {
     "Node ID:",
     currentNode.name + currentNode.switched ? "(reversed)" : "",
   ]);
-  nodeAttributes.push(["Node Length:", currentNode.sequenceLength + " bases"]);
-  nodeAttributes.push(["Haplotypes:", currentNode.degree]);
+  nodeAttributes.push(["Node Length: ", currentNode.sequenceLength + " bases"]);
+  nodeAttributes.push(["Haplotypes: ", currentNode.degree]);
   nodeAttributes.push([
     "Aligned Reads:",
     currentNode.incomingReads.length +
       currentNode.internalReads.length +
       currentNode.outgoingReads.length,
   ]);
-  nodeAttributes.push(["Total Visits:", numReadsVisitNode(currentNode)]);
-  nodeAttributes.push(["Coverage:", coverage(currentNode, reads)]);
+  nodeAttributes.push(["Total Visits: ", numReadsVisitNode(currentNode)]);
+  nodeAttributes.push(["Coverage: ", coverage(currentNode, reads)]);
 
   console.log("Single Click");
   console.log("node show info callback", config.showInfoCallback);
-  config.showInfoCallback(nodeAttributes);
+  let strNodeAttributes = "";
+  nodeAttributes.forEach((nodeAttr) => {strNodeAttributes += nodeAttr[0] + String(nodeAttr[1]) + "\n"})
+  config.showInfoCallback(strNodeAttributes);
 }
 
 // Count the number of distinct reads that visit the given node object.
@@ -4266,16 +4272,7 @@ function nodeMouseOut() {
 
 // Move clicked track to first position
 function trackDoubleClick() {
-  /* jshint validthis: true */
-  const trackID = d3.select(this).attr("trackID");
-  const index = getInputTrackIndexByID(trackID);
-  if (index === undefined) {
-    // Must be a read. Skip it.
-    return;
-  }
-  if (DEBUG) console.log(`moving index: ${index}`);
-  moveTrackToFirstPosition(index);
-  createTubeMap();
+  return;
 }
 
 // Takes a track and returns a string describing the nodes it passes through
