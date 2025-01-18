@@ -4245,7 +4245,22 @@ function colorNodes(nodeName) {
 }
 
 function getPopUpNodeText(node) {
-  return `Node ID: ${node.name}` + (node.switched ? ` (reversed)` : ``) + `\n` + "Length: " + node.sequenceLength + "\n";
+  let errorAttr = "";
+  if (globalNodeErrorMap[node.name]) {
+    errorAttr = "\n\nAll errors\n"
+    const entries = Object.entries(globalNodeErrorMap[node.name]);
+    if (config.mergeTracksFlag) {
+      entries.sort(([, value1], [, value2]) => value2 - value1);
+    } else {
+      entries.sort(([, value1], [, value2]) => value1 - value2);
+    }
+    const sortedKeys = entries.map(([key]) => key);
+
+    sortedKeys.forEach((key) => {
+      errorAttr += key + ":  " +String(globalNodeErrorMap[node.name][key]) + "%\n"
+    })
+  }
+  return `Node ID: ${node.name}` + (node.switched ? ` (reversed)` : ``) + `\n` + "Length: " + node.sequenceLength + errorAttr;
 }
 
 // Get any node object by name.
@@ -4745,7 +4760,7 @@ function drawTrackRectangles(rectangles, type, groupTrack) {
     .on("dblclick", trackDoubleClick)
     .on("click", trackSingleClick)
     .append("svg:title")
-    .text((d) => getPopUpTrackText(d.name));
+    .text((d) => getPopUpTrackText(d));
 }
 
 function compareCurvesByXYStartValue(a, b) {
@@ -5046,7 +5061,7 @@ function drawTrackCurves(type, groupTrack) {
     .on("dblclick", trackDoubleClick)
     .on("click", trackSingleClick)
     .append("svg:title")
-    .text((d) => getPopUpTrackText(d.name));
+    .text((d) => getPopUpTrackText(d));
 }
 
 function drawTrackCorners(corners, type, groupTrack) {
@@ -5068,7 +5083,7 @@ function drawTrackCorners(corners, type, groupTrack) {
     .on("dblclick", trackDoubleClick)
     .on("click", trackSingleClick)
     .append("svg:title")
-    .text((d) => getPopUpTrackText(d.name));
+    .text((d) => getPopUpTrackText(d));
 }
 
 function drawLegend() {
@@ -5176,6 +5191,7 @@ function trackMouseOut() {
   /* jshint validthis: true */
   const trackID = d3.select(this).attr("trackID");
   const trackName = d3.select(this).attr("trackName");
+  
 
   //If it has a selection color, do not reset the color
   if (selectionData.colorMap[trackName]) {
@@ -5293,12 +5309,14 @@ function trackSingleClick() {
 }
 
 // show track name when hovering mouse
-function getPopUpTrackText(trackid) {
-  let refTrack = inputTracks.find(track => track && track["name"] === trackid);
+function getPopUpTrackText(track) {
+  let refTrack = tracks.find(track => track && track["name"] === track.name);
   if (refTrack && refTrack.otherTracks) {
-    return refTrack.otherTracks;
+    let otherTrackString = ""
+    refTrack.otherTracks.forEach((otherTrack) => {otherTrackString += String(otherTrack) + "\n"})
+    return otherTrackString;
   } else {
-    return trackid;
+    return track.name;
   }
 }
 
