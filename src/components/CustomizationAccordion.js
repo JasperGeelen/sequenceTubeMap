@@ -279,16 +279,6 @@ class VisualizationOptions extends Component {
                       Merge Duplicate Tracks
                     </Label>
                   </FormGroup>
-                  <FormGroup check>
-                    <Label check>
-                      <Input
-                        type="checkbox"
-                        defaultValue={visOptions.overlapTracks}
-                        onChange={() => toggleFlag("overlapTracks")}
-                      />
-                      Allow Overlapping Tracks
-                    </Label>
-                  </FormGroup>
                   </FormGroup>
                   <Button
                     color="secondary"

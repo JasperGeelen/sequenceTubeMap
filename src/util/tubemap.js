@@ -1116,6 +1116,9 @@ function LiteView(nodes, tracks) {
     //console.log("The error between old: " + oldSeq + " and new: " + newSeq + " is: " + error)
     error = Number(error) / Number(newSeq.length) * 100.0
     error = Number(error.toPrecision(2))
+    if (error > 100.0) {
+      error = 100.0
+    }
     neoNodeErrorMap[seq.nodeName][seq.trackName] = error;
   })
   
