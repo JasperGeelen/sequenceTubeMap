@@ -222,7 +222,8 @@ let trackForRuler;
 let bed;
 
 //Global variables for LiteView
-let minSVsize = 10;
+let minDelSize = 50;
+let minInsSize = 50;
 
 let nodeOrders = {};
 let globalNodeErrorMap = {}
@@ -479,8 +480,11 @@ export function setOverlapTracksFlag(value) {
 }
 
 export function updateLiteView(updateMap) {
-  if (updateMap["minSVsize"]) {
-    minSVsize = updateMap["minSVsize"];
+  if (updateMap["minDelSize"]) {
+    minDelSize = updateMap["minDelSize"];
+  }
+  if (updateMap["minInsSize"]) {
+    minInsSize = updateMap["minInsSize"];
   }
   createTubeMap();
 }
@@ -726,10 +730,11 @@ function createTubeMap() {
 
 function LiteView(nodes, tracks) {
   //Settings
-  const majorityThreshold = 0.5;
+  const majorityThreshold = 0.3;
   const minTrackLength = 1;
-  //const svSize = minSVsize;
-  const svSize = 1000;
+  const insSize = minInsSize;
+  const delSize = minDelSize;
+  //const svSize = 100;
   const p = 0.1
 
   //Remove Small tracks
@@ -777,6 +782,7 @@ function LiteView(nodes, tracks) {
       });
     }
   });
+  ordMajNodeNames = ordMajNodeNames.sort((a, b) => Number(a) - Number(b));
   majNodeNames = ordMajNodeNames;
 
 
@@ -810,7 +816,7 @@ function LiteView(nodes, tracks) {
     //Visit each node, check whether it is an inertion compared to Maj nodes
     track.sequence.forEach((nodeName) => {
       let refNode = nodes[nodeMap.get(nodeName)]
-      if (refNode.seq.length > svSize && !majNodeNames.includes(nodeName)) {
+      if (refNode.seq.length > insSize && !majNodeNames.includes(nodeName)) {
         lastSv = nodeName;
         lastSvStart = latestMajority;
         //Start of insertion
@@ -857,7 +863,7 @@ function LiteView(nodes, tracks) {
         if (delCount === 0) {
           head = nodeName;
         }
-        if (delCount >= svSize && head) {
+        if (delCount >= delSize && head) {
           //console.log("deletion count exceeds sv size")
           let newDeletion = {
             "type": modType.deletion,
@@ -974,7 +980,6 @@ function LiteView(nodes, tracks) {
       }
     }
 
-
     //Loop through new node list, take care of any SV's come across
     let foundStartNode = false;
     let newSequence = []
@@ -982,7 +987,9 @@ function LiteView(nodes, tracks) {
     let mods = trackMods[track.name];
     for (let i = 0; i < newNodeList.length; i++) {
       let currNode = newNodeList[i];
-      if (currNode.name !== firstNewNode && !foundStartNode) {
+      const includedNodes = majNodeMap[currNode.name]
+      const atLeastOne = includedNodes.some(node => track.sequence.includes(node))
+      if ((currNode.name !== firstNewNode && !foundStartNode) || !atLeastOne) {
         continue;
       } else {
         foundStartNode = true;
@@ -1013,12 +1020,18 @@ function LiteView(nodes, tracks) {
   console.log("NEW TRACKS")
   console.log(tracks)
 
-
   //Prepare map to save number of errors for each new node
-  let nodeErrorMap = {}
+  let neoNodeErrorMap = {}
+  let mergedNodeNames = []
+  let nodeErrorMap = {};
   newNodeList.forEach((newNode) => {
+    if (newNode.modType !== modType.insertion) {
+      neoNodeErrorMap[newNode.name] = {}
+      mergedNodeNames.push(newNode.name)
+    }
     nodeErrorMap[newNode.name] = {}
   });
+
 
   let newNodeMap = new Map();
   newNodeList.forEach((node, index) => {
@@ -1034,86 +1047,158 @@ function LiteView(nodes, tracks) {
   console.log("OLD NODE LIST")
   console.log(nodes)
 
-  //Computing the simplification errors
-  let leftovers = []
-  ogTracks.forEach((ogTrack) => {
-    let newTrack = tracks.find(track => track.name === ogTrack.name);
-    let mods = trackMods[newTrack.name];
-    let currNewIdx = 0;
-    let currentNewNode = newTrack.sequence[0]
-    let inBetween = false;
-    //TODO: add exception for if the new node list only has one node
-    let oldSeq = []
-    //let tail = [];
-    //Loop through the complete orginal sequence
-    for (let i = 0; i < ogTrack.indexSequence.length; i++) {
-      let currNode = ogTrack.sequence[i]
-      let currNodeRef = ogNodes[nodeMap.get(currNode)];
+  let subSequences = []
 
-      if (majNodeNames.includes(currNode)) {
-        if (majNodeMap[currentNewNode].includes(currNode) && inBetween) {
-          inBetween = false;
+
+  tracks.forEach((newTrack) => {
+    const oldTrack = ogTracks.find(track => track.name === newTrack.name);
+    newTrack.sequence.forEach((newNodeName => {
+      //Check if it is one of the "merged" nodes, not an insertion
+      if (!mergedNodeNames.includes(newNodeName)) {
+        return;
+      }
+      //const newNode = newNodeList[newNodeMap.get(newNodeName)]
+      const includedNodes = majNodeMap[newNodeName]
+
+      let startNodeName;
+      for (let i = 0; i < oldTrack.sequence.length; i++) {
+        const currNodeName = oldTrack.sequence[i]
+        if (includedNodes.includes(currNodeName)) {
+          startNodeName = currNodeName;
+          break;
         }
-        if (!majNodeMap[currentNewNode].includes(currNode) || i === ogTrack.indexSequence.length - 1) {
-
-          //Record and proceed to next node
-          let newSeq = newNodeList[newNodeMap.get(currentNewNode)].seq;
-          oldSeq = oldSeq.join('')
-          let error = levenshtein(oldSeq, newSeq)
-          if (ogTrack.name === "19_kz_9#0#kz2#0[3637]") {
-            console.log("The error between old: " + oldSeq + " and new: " + newSeq + " is: " + error)
-          }
-          
-          let errorPercent = Math.round(error / newSeq.length * 100)
-          nodeErrorMap[currentNewNode][newTrack.name] = errorPercent
-
-          currNewIdx += 1;
-          if (currNewIdx < newTrack.sequence.length) {
-            currentNewNode = newTrack.sequence[currNewIdx]
-            let newNodeObj = newNodeList[newNodeMap.get(currentNewNode)];
-            if (newNodeObj.modType === modType.insertion) {
-              currNewIdx += 1;
-            }
-            currentNewNode = newTrack.sequence[currNewIdx]
-            // if (!majNodeMap[currentNewNode].includes(currNode)) {
-            //   //This means that the next majority node on this list is not part of the next node
-            //   console.log("ERROR NOT SUPPOSED TO HAPPEN")
-            // }
-          }
-          oldSeq = []
-          inBetween = true;
-
-          if (majNodeMap[currentNewNode].includes(currNode)) {
-            //instantly starts new node
-            inBetween = false;
-            oldSeq.push(currNodeRef.seq);
-          }
-
-          //leftovers.push(tail)
-          //tail = []
-        } else {
-          //oldSeq = oldSeq.concat(tail)
-          //tail = []
-          if (!inBetween) {
-            oldSeq.push(currNodeRef.seq);
-          }
-        }
-      } else {
-        if (!inBetween && currNodeRef.seq.length < minSVsize) {
-          oldSeq.push(currNodeRef.seq)
-        }
-        //tail.push(currNodeRef.seq)
       }
       
+      let endNodeName;
+      for (let i = oldTrack.sequence.length - 1; i >= 0; i--) {
+        const currNodeName = oldTrack.sequence[i]
+        if (includedNodes.includes(currNodeName)) {
+          endNodeName = currNodeName;
+          break;
+        }
+      }
+
+      if (!startNodeName) {
+        console.log("------------ NO START NODE NAME FOUND -----------")
+      }
+      if (!endNodeName) {
+        console.log("-------------- NO END NODE NAME FOUND -----------")
+      }
+
+      subSequences.push({
+        nodeName: newNodeName,
+        trackName: newTrack.name,
+        startNodeName: startNodeName,
+        endNodeName: endNodeName
+      })
+    }))
+  })
+
+  console.log("SUB SEQUENCES LIST")
+  console.log(subSequences)
+
+  
+  subSequences.forEach((seq) => {
+    const oldTrack = ogTracks.find(track => track.name === seq.trackName);
+    const sequence = oldTrack.sequence;
+    const startIndex = sequence.indexOf(seq.startNodeName)
+    const endIndex = sequence.indexOf(seq.endNodeName)
+
+    //Get old sequence by walking throught the corresponding sequence
+    let oldSeq = "";
+    for (let i = startIndex; i <= endIndex; i++) {
+      oldSeq += ogNodes[nodeMap.get(sequence[i])].seq
     }
+    const newSeq = newNodeList[newNodeMap.get(seq.nodeName)].seq;
 
-  });
+    //Calculate error between old and new via levehstein distance
+    let error = levenshtein(oldSeq, newSeq)
+    //console.log("The error between old: " + oldSeq + " and new: " + newSeq + " is: " + error)
+    error = Number(error) / Number(newSeq.length) * 100.0
+    error = Number(error.toPrecision(2))
+    neoNodeErrorMap[seq.nodeName][seq.trackName] = error;
+  })
+  
+  console.log("NEO NODE ERROR MAP")
+  console.log(neoNodeErrorMap)
 
-  console.log("LETOVERS")
-  console.log(leftovers);
 
-  console.log("ERRORMAP:")
-  console.log(nodeErrorMap)
+  // //Computing the simplification errors
+  // let leftovers = []
+  // ogTracks.forEach((ogTrack) => {
+  //   let newTrack = tracks.find(track => track.name === ogTrack.name);
+  //   let mods = trackMods[newTrack.name];
+  //   let currNewIdx = 0;
+  //   let currentNewNode = newTrack.sequence[0]
+  //   let inBetween = false;
+  //   //TODO: add exception for if the new node list only has one node
+  //   let oldSeq = []
+  //   //let tail = [];
+  //   //Loop through the complete orginal sequence
+  //   for (let i = 0; i < ogTrack.indexSequence.length; i++) {
+  //     let currNode = ogTrack.sequence[i]
+  //     let currNodeRef = ogNodes[nodeMap.get(currNode)];
+
+  //     if (majNodeNames.includes(currNode)) {
+  //       if (majNodeMap[currentNewNode].includes(currNode) && inBetween) {
+  //         inBetween = false;
+  //       }
+  //       if (!majNodeMap[currentNewNode].includes(currNode) || i === ogTrack.indexSequence.length - 1) {
+
+  //         //Record and proceed to next node
+  //         let newSeq = newNodeList[newNodeMap.get(currentNewNode)].seq;
+  //         oldSeq = oldSeq.join('')
+  //         let error = levenshtein(oldSeq, newSeq)
+  //         if (ogTrack.name === "19_kz_9#0#kz2#0[3637]") {
+  //           console.log("The error between old: " + oldSeq + " and new: " + newSeq + " is: " + error)
+  //         }
+          
+  //         let errorPercent = Math.round(error / newSeq.length * 100)
+  //         nodeErrorMap[currentNewNode][newTrack.name] = errorPercent
+
+  //         currNewIdx += 1;
+  //         if (currNewIdx < newTrack.sequence.length) {
+  //           currentNewNode = newTrack.sequence[currNewIdx]
+  //           let newNodeObj = newNodeList[newNodeMap.get(currentNewNode)];
+  //           if (newNodeObj.modType === modType.insertion) {
+  //             currNewIdx += 1;
+  //           }
+  //           currentNewNode = newTrack.sequence[currNewIdx]
+  //           // if (!majNodeMap[currentNewNode].includes(currNode)) {
+  //           //   //This means that the next majority node on this list is not part of the next node
+  //           //   console.log("ERROR NOT SUPPOSED TO HAPPEN")
+  //           // }
+  //         }
+  //         oldSeq = []
+  //         inBetween = true;
+
+  //         if (majNodeMap[currentNewNode].includes(currNode)) {
+  //           //instantly starts new node
+  //           inBetween = false;
+  //           oldSeq.push(currNodeRef.seq);
+  //         }
+
+  //         //leftovers.push(tail)
+  //         //tail = []
+  //       } else {
+  //         //oldSeq = oldSeq.concat(tail)
+  //         //tail = []
+  //         if (!inBetween) {
+  //           oldSeq.push(currNodeRef.seq);
+  //         }
+  //       }
+  //     } else {
+  //       if (!inBetween && currNodeRef.seq.length < minSVsize) {
+  //         oldSeq.push(currNodeRef.seq)
+  //       }
+  //       //tail.push(currNodeRef.seq)
+  //     }
+      
+  //   }
+
+  // });
+
+
 
   
   //Merge tubes that only follow the majority nodes
@@ -1168,7 +1253,7 @@ function LiteView(nodes, tracks) {
 
 
   //Return new node list and updated track list
-  return [newNodeList, tracks, nodeErrorMap];
+  return [newNodeList, tracks, neoNodeErrorMap];
 }
 
 function findLargestGroup(list) {
@@ -1211,7 +1296,12 @@ function drawErrors(nodes, nodeErrorMap) {
         y = drawLineDistribution(errors, node, y, trackWidth);
       } else {
         //Normal tracks
-        let error = nodeErrorMap[node.name][trackName];
+        let error;
+        if (nodeErrorMap[node.name]) {
+          error = nodeErrorMap[node.name][trackName];
+        } else {
+          error = 0.0;
+        }
         let width = node.pixelWidth * (error / 100)
         if (centerAligned) {
           x = node.x + node.pixelWidth / 2 -width / 2
@@ -1365,7 +1455,6 @@ function nodeSelectionInfo(nodeName) {
     }
   });
 
-  console.log(selectedTracks)
 
   //For each track cut the node sequence such that only nodes remain that are
   //contained within the selected liteview node
@@ -1396,6 +1485,10 @@ function nodeSelectionInfo(nodeName) {
   });
   
   //Retrieve the correct subset of Nodes
+  const includedNodes = globalMajNodeMap[nodeName]
+  // includedNodes.forEach((nodeName) {
+
+  // })
   let selectedNodes = []
   selectedTracks.forEach((track) => {
     track.sequence.forEach((nodeName) => {
@@ -1405,7 +1498,24 @@ function nodeSelectionInfo(nodeName) {
   })
   selectedNodes = [...new Set(selectedNodes)]
 
-  console.log(selectedNodes)
+  //Show what the majority track looks like
+  
+  selectedTracks.push({
+    id: selectedTracks.length + 20,
+    indexOfFirstBase: 1,
+    name: "majorityTrack",
+    sequence: includedNodes,
+    sourceTrackID: 0
+  })
+  selectionData.colorMap["majorityTrack"] = "#000000"
+
+  console.log("SELECTED TRACKS")
+  console.log(selectedTracks)
+
+  selectedTracks.unshift(selectedTracks[selectedTracks.length - 1]);
+  selectedTracks.pop()
+  
+  console.log(selectedTracks)
 
   selectionData.selectedTracks = selectedTracks
   selectionData.selectedNodes = selectedNodes

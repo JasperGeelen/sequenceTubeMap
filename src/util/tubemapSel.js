@@ -467,6 +467,7 @@ function createTubeMap() {
   if (inputNodes.length === 0 || inputTracks.length === 0) return;
 
   straightenTrack(0);
+
   nodes = deepCopy(inputNodes); // deep copy (can add stuff to copy and leave original unchanged)
   tracks = deepCopy(inputTracks);
   reads = deepCopy(inputReads);
@@ -489,10 +490,14 @@ function createTubeMap() {
   }
   if (tracks.length === 0) return;
 
+
+
   nodeMap = generateNodeMap(nodes);
   generateTrackIndexSequences(tracks);
   if (reads && config.showReads) generateTrackIndexSequences(reads);
   generateNodeWidth();
+
+
 
   if (config.mergeNodesFlag) {
     generateNodeSuccessors(); // requires indexSequence
@@ -4230,9 +4235,14 @@ function getTrackByID(trackID) {
 
 // Highlight track on mouseover
 function trackMouseOver() {
+
   /* jshint validthis: true */
   const trackID = d3.select(this).attr("trackID");
   const trackName = d3.select(this).attr("trackName");
+
+  if (trackName === "majorityTrack") {
+    return
+  }
   // TODO: We want to also .raise() here, but it makes Firefox 124.0.2 on Mac
   // lose the mouseout and immediately trigger another mouseover, if the mouse
   // is over a curved section of a read.
@@ -4296,6 +4306,7 @@ function getPathInfo(track) {
 }
 
 function trackSingleClick() {
+
   /* jshint validthis: true */
   // Get the track ID as a number
   const trackID = Number(d3.select(this).attr("trackID"));
@@ -4305,6 +4316,11 @@ function trackSingleClick() {
     console.error("Missing track: ", trackID);
     return;
   }
+
+  if (current_track.name === "majorityTrack") {
+    return;
+  }
+
   let track_attributes = [];
   track_attributes.push(["Name", current_track.name]);
   if (current_track.type === "read") {
@@ -4319,6 +4335,8 @@ function trackSingleClick() {
     track_attributes.push(["Mapping Quality", current_track.mapping_quality]);
     track_attributes.push(["Path Info", getPathInfo(current_track)]);
   }
+
+  
 
   if (selectionData.colorMap[current_track.name]) {
     const color = selectionData.colorMap[current_track.name]

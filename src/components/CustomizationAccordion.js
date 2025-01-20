@@ -103,13 +103,16 @@ class VisualizationOptions extends Component {
       }
     }
 
-    this.minSVSizeRef = React.createRef();
+    this.minInsRef = React.createRef();
+    this.minDelRef = React.createRef();
     //const minSVSizeRef = useRef(null);
     const handleClick = () => {
-      const value = this.minSVSizeRef.current.value;
+      const value1 = this.minInsRef.current.value;
+      const value2 = this.minDelRef.current.value;
       //alert(`The value in the input is: ${value}`);
       let update = {}
-      update["minSVsize"] = value
+      update["minInsSize"] = value1
+      update["minDelSize"] = value2
       this.updateLiteView(update);
     };
 
@@ -243,15 +246,29 @@ class VisualizationOptions extends Component {
                   </FormGroup>
                   <FormGroup check>
                     <Label check>
-                      Show SV's with a minimal nucleotide size of:
+                      Show insertions with a minimal nucleotide size of:
                     </Label>
                     <input 
                       type="number" 
-                      name="minSVsize" 
-                      defaultValue={10}
-                      ref={this.minSVSizeRef}
+                      name="minInsertion" 
+                      defaultValue={50}
+                      ref={this.minInsRef}
                       style={{ marginLeft: "10px", width: "80px" }}
                     />
+                    </FormGroup>
+
+                    <FormGroup check>
+                    <Label check>
+                      Show deletions with a minimal nucleotide size of:
+                    </Label>
+                    <input 
+                      type="number" 
+                      name="minDeletion" 
+                      defaultValue={50}
+                      ref={this.minDelRef}
+                      style={{ marginLeft: "10px", width: "80px" }}
+                    />
+                  
                   <FormGroup check>
                     <Label check>
                       <Input
