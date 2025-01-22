@@ -728,6 +728,65 @@ function createTubeMap() {
   return tracks;
 }
 
+function majorityOrder(lists) {
+  const items = new Set();
+  const pairCounts = new Map();
+
+  // Collect all items and pairwise counts
+  lists.forEach(list => {
+      list.forEach((item, i) => {
+          items.add(item);
+          for (let j = i + 1; j < list.length; j++) {
+              const pair = `${item},${list[j]}`;
+              pairCounts.set(pair, (pairCounts.get(pair) || 0) + 1);
+          }
+      });
+  });
+
+  const itemArray = Array.from(items);
+  const itemCount = itemArray.length;
+  const graph = new Map();
+
+  // Create the graph
+  itemArray.forEach(item => graph.set(item, new Set()));
+  itemArray.forEach(itemA => {
+      itemArray.forEach(itemB => {
+          if (itemA !== itemB) {
+              const forward = `${itemA},${itemB}`;
+              const backward = `${itemB},${itemA}`;
+              const countA = pairCounts.get(forward) || 0;
+              const countB = pairCounts.get(backward) || 0;
+              if (countA > countB) {
+                  graph.get(itemA).add(itemB);
+              }
+          }
+      });
+  });
+
+  // Perform topological sort
+  const visited = new Set();
+  const tempMark = new Set();
+  const result = [];
+
+  function visit(node) {
+      if (visited.has(node)) return;
+      if (tempMark.has(node)) {
+          throw new Error("Cycle detected! Unable to determine majority order.");
+      }
+      tempMark.add(node);
+      graph.get(node).forEach(visit);
+      tempMark.delete(node);
+      visited.add(node);
+      result.push(node);
+  }
+
+  itemArray.forEach(item => {
+      if (!visited.has(item)) visit(item);
+  });
+
+  return result.reverse(); // Topological sort returns reverse order
+}
+
 function LiteView(nodes, tracks) {
   //Settings
   const majorityThreshold = 0.3;
@@ -749,6 +808,17 @@ function LiteView(nodes, tracks) {
     tracks = tracks.filter(track => !banned_list.includes(track.name))
   }
 
+  let banList = []
+  tracks.forEach((track) => {
+    track.sequence.forEach((nodeName) => {
+      let refNode = nodes[nodeMap.get(nodeName)]
+      if (!refNode) {
+        banList.push(track.name)
+      }
+    })
+  })
+  tracks = tracks.filter(track => !banList.includes(track.name))
+
   //Keep a copy of the old tracks
   let ogTracks = deepCopy(tracks);
   let ogNodes = deepCopy(nodes);
@@ -765,6 +835,21 @@ function LiteView(nodes, tracks) {
     }
   });
 
+    //Order majorityNodes
+  let sequences = []
+  tracks.forEach((track) => {
+    let seq = []
+    track.sequence.forEach((nodeName) => {
+      if (majNodeNames.includes(nodeName)) {
+        seq.push(nodeName)
+      }
+    });
+    sequences.push(seq)
+  });
+  let neoOrderedNodes = majorityOrder(sequences)
+  console.log("NEOOOOO")
+  console.log(neoOrderedNodes)
+
 
   //Order majorityNodes
   let ordMajNodeNames = []
@@ -774,6 +859,7 @@ function LiteView(nodes, tracks) {
       track.sequence.forEach((nodeName) => {
         if (majNodeNames.includes(nodeName)) {
           if (ordMajNodeNames.includes(nodeName)) {
+
           } else {
             ordMajNodeNames.splice(idx, 0, nodeName);
           }
@@ -783,7 +869,7 @@ function LiteView(nodes, tracks) {
     }
   });
   ordMajNodeNames = ordMajNodeNames.sort((a, b) => Number(a) - Number(b));
-  majNodeNames = ordMajNodeNames;
+  majNodeNames = neoOrderedNodes;
 
 
   //Prepare list with track modification info
@@ -1519,6 +1605,7 @@ function nodeSelectionInfo(nodeName) {
   selectedTracks.pop()
   
   console.log(selectedTracks)
+  selectedNodes = selectedNodes.filter(() => true);
 
   selectionData.selectedTracks = selectedTracks
   selectionData.selectedNodes = selectedNodes
