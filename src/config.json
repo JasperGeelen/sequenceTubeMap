@@ -17,7 +17,7 @@
         "bedFile": "none",
         "name": "ArabidopsisChr1",
         "tracks": [
-          {"trackFile": "/home/jgeelen/data/panva-data-disc/mc-pangenome/chrom-alignments/co1.vg", "trackType": "graph"}
+          {"trackFile": "/home/jgeelen/data/panva-data-disc/mc-pangenome/chrom-alignments/co1.vg.xg", "trackType": "graph"}
         ],
         "dataType": "mounted files",
         "simplify": false,
@@ -27,7 +27,7 @@
         "bedFile": "none",
         "name": "ArabidopsisChr2",
         "tracks": [
-          {"trackFile": "/home/jgeelen/data/panva-data-disc/mc-pangenome/chrom-alignments/co2.vg", "trackType": "graph"}
+          {"trackFile": "/home/jgeelen/data/panva-data-disc/mc-pangenome/chrom-alignments/co2.vg.xg", "trackType": "graph"}
         ],
         "dataType": "mounted files",
         "simplify": false,
@@ -37,7 +37,7 @@
         "bedFile": "none",
         "name": "ArabidopsisChr3",
         "tracks": [
-          {"trackFile": "/home/jgeelen/data/panva-data-disc/mc-pangenome/chrom-alignments/co3.vg", "trackType": "graph"}
+          {"trackFile": "/home/jgeelen/data/panva-data-disc/mc-pangenome/chrom-alignments/co3.vg.xg", "trackType": "graph"}
         ],
         "dataType": "mounted files",
         "simplify": false,
@@ -47,7 +47,7 @@
         "bedFile": "none",
         "name": "ArabidopsisChr4",
         "tracks": [
-          {"trackFile": "/home/jgeelen/data/panva-data-disc/mc-pangenome/chrom-alignments/co4.vg", "trackType": "graph"}
+          {"trackFile": "/home/jgeelen/data/panva-data-disc/mc-pangenome/chrom-alignments/co4.vg.xg", "trackType": "graph"}
         ],
         "dataType": "mounted files",
         "simplify": false,
@@ -57,7 +57,7 @@
         "bedFile": "none",
         "name": "ArabidopsisChr5",
         "tracks": [
-          {"trackFile": "/home/jgeelen/data/panva-data-disc/mc-pangenome/chrom-alignments/co5.vg", "trackType": "graph"}
+          {"trackFile": "/home/jgeelen/data/panva-data-disc/mc-pangenome/chrom-alignments/co5.vg.xg", "trackType": "graph"}
         ],
         "dataType": "mounted files",
         "simplify": false,

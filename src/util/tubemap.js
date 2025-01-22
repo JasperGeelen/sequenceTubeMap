@@ -794,7 +794,7 @@ function LiteView(nodes, tracks) {
   const insSize = minInsSize;
   const delSize = minDelSize;
   //const svSize = 100;
-  const p = 0.1
+  const p = 0.5
 
   //Remove Small tracks
   let sequenceLengths = []
